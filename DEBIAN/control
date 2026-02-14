@@ -1,0 +1,17 @@
+Package: grubzilla
+Version: 1.0-6
+Section: utils
+Priority: optional
+Architecture: all
+Depends: zenity, xdg-utils, grub-common
+Installed-Size: 200
+Maintainer: ski777000 <ski777000@gmail.com>
+Description: Automatyczny backup systemu Linux programem CloneZilla z menu GRUB.
+ Dodaje wpisy do menu GRUB w pliku 40_custom oraz skrypty na USB partycja ext4.
+ Do poprawnego działania wymaga pliku ISO CloneZilla na partycji FAT32
+ o nazwie /clonezilla.iso na dysku USB.
+ .
+ Autorzy:
+  - ski777000 (ski777000@gmail.com) - pomysl, testy, rozwoj
+  - Gemini/ChatGPT - wsparcie koderskie
+

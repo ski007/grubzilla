@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+# Upewniamy się, że pliki mają dobre uprawnienia po wypakowaniu
+chown root:root /usr/share/applications/grubzilla.desktop
+chmod 644 /usr/share/applications/grubzilla.desktop
+chown root:root /usr/share/pixmaps/grubzilla.png
+chmod 644 /usr/share/pixmaps/grubzilla.png
+
+# Odświeżamy bazy danych (to musi być w paczce!)
+update-desktop-database -q /usr/share/applications || true
+gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
+
+# Twoje pozostałe komendy
+update-grub
+
+exit 0

@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e
+
+# Dodajemy PATH, żeby skrypt zawsze widział narzędzia systemowe
+export PATH=$PATH:/usr/local/sbin:/usr/sbin:/sbin
+
+GRUB_FILE="/etc/grub.d/40_custom"
+
+case "$1" in
+    remove|purge)
+        echo "🧹 Usuwanie wpisów GrubZilla (CloneZilla) z 40_custom..."
+
+        if [[ -f "$GRUB_FILE" ]]; then
+            # Usuwanie bloków menuentry
+            sed -i '/^menuentry "CloneZilla - Automatyczny Backup Systemu.*(na USB)"/,/^}/d' "$GRUB_FILE"
+            sed -i '/^menuentry "CloneZilla - Automatyczne Przywracanie Systemu.*(ostatni zapisany obraz na USB)"/,/^}/d' "$GRUB_FILE"
+            sed -i '/^menuentry "CloneZilla - Standard TUI (PL).*"/,/^}/d' "$GRUB_FILE"
+            
+            # Usuwanie zbędnych pustych linii
+            sed -i '/^$/d' "$GRUB_FILE"
+        fi
+
+        echo "🔄 Aktualizacja konfiguracji GRUB..."
+        # Bezpieczne wywołanie aktualizacji GRUB
+        if command -v update-grub > /dev/null 2>&1; then
+            update-grub || echo "Ostrzeżenie: Nie udało się zaktualizować GRUB."
+        else
+            grub-mkconfig -o /boot/grub/grub.cfg || echo "Ostrzeżenie: Nie udało się zaktualizować GRUB."
+        fi
+
+        # Odświeżenie bazy plików .desktop (bez pełnej ścieżki, by uciszyć Lintiana)
+        if command -v update-desktop-database > /dev/null 2>&1; then
+            update-desktop-database -q /usr/share/applications || true
+        fi
+        ;;
+
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GrubZilla - Instrukcja PDF
+Comment=Dokumentacja i instrukcja obsługi programu
+Exec=xdg-open /usr/share/doc/grubzilla/grubzilla.pdf
+Icon=help
+Terminal=false
+Categories=System;Documentation;

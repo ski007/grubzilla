@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=GrubZilla (Uruchom Aktualizator-GRUB)
+Name[pl_PL]=GrubZilla (Uruchom Aktualizator-GRUB)
+Comment=Aktualizuje Grub z zebranych konfiguracji OS Linux
+Exec=sudo aktualizator-GRUB
+Icon=aktualizator
+Terminal=true
+Type=Application
+Categories=System;Utility;

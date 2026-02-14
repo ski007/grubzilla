@@ -1,0 +1,25 @@
+[Desktop Entry]
+Version=1.0
+Name=GrubZilla
+Name[pl_PL]=GrubZilla
+Comment=Tworzy i zarządza kopiami zapasowymi systemu
+Exec=sudo /usr/bin/grubzilla
+Icon=grubzilla
+Terminal=true
+Type=Application
+Categories=System;Utility;
+Actions=AktualizujGRUB;UsunGRUB;
+
+[Desktop Action AktualizujGRUB]
+Name=Uruchom Aktualizator-GRUB
+Exec=sudo aktualizator-GRUB
+Icon=aktualizator
+
+[Desktop Action UsunGRUB]
+Name=Uruchom Usuwator-GRUB
+Exec=sudo usuwator-GRUB
+Icon=usuwator
+
+
+
+

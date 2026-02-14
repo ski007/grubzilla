@@ -1,0 +1,83 @@
+#!/bin/bash
+# =================================================================
+# usuwator_GRUB.sh
+# - usuwa wszystkie wpisy w pliku 40_custom o nazwie: CloneZilla
+# - tworzy kopię zapasową pliku : 40_custom w folderze domowym użytkownika
+# =================================================================
+# --- Konfiguracja ---
+GRUB_FILE="/etc/grub.d/40_custom"
+KEYWORD="CloneZilla"
+TEMP_FILE=$(mktemp) # Utworzenie bezpiecznego pliku tymczasowego
+
+# --- Sprawdzenie uprawnień ---
+if [ "$(id -u)" -ne 0 ]; then
+  echo "🚫 Ten skrypt musi być uruchomiony z uprawnieniami administratora (sudo)." >&2
+  exit 1
+fi
+
+# --- Sprawdzenie, czy plik istnieje ---
+if [ ! -f "$GRUB_FILE" ]; then
+  echo "⚠️ Plik $GRUB_FILE nie istnieje. Prerywam działanie."
+  exit 1
+fi
+
+# --- Sprawdzenie, czy są wpisy do usunięcia ---
+if ! grep -q "menuentry.*${KEYWORD}" "$GRUB_FILE"; then
+    echo "👍 Nie znaleziono żadnych wpisów '${KEYWORD}'. Plik nie wymaga zmian."
+    exit 0
+fi
+
+# --- Tworzenie kopii zapasowej (tylko jeśli są zmiany do zrobienia) ---
+if [ -n "$SUDO_USER" ]; then
+  USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+else
+  USER_HOME="/root"
+fi
+BACKUP_FILENAME="40_custom_backup_$(date +%Y-%m-%d_%H-%M-%S)"
+BACKUP_PATH="$USER_HOME/$BACKUP_FILENAME"
+
+echo "🛡️  Znaleziono wpisy. Tworzę kopię zapasową pliku $GRUB_FILE..."
+cp "$GRUB_FILE" "$BACKUP_PATH"
+if [ -n "$SUDO_USER" ]; then
+  chown "$SUDO_USER:$SUDO_USER" "$BACKUP_PATH"
+fi
+echo "✅ Kopia zapasowa zapisana w: $BACKUP_PATH"
+echo "-----------------------------------------------------"
+
+
+# --- Właściwe czyszczenie pliku za pomocą AWK ---
+echo "🔥 Usuwam wszystkie wpisy '${KEYWORD}' za pomocą awk..."
+
+awk -v keyword="$KEYWORD" '
+  # Jeśli linia zawiera "menuentry" i nasze słowo kluczowe, ustaw flagę i przejdź do następnej linii
+  $0 ~ "menuentry.*" keyword {
+    in_block=1;
+    next;
+  }
+  # Jeśli jesteśmy w bloku i linia zaczyna się od "}", zdejmij flagę i przejdź do następnej linii
+  in_block && /^}/ {
+    in_block=0;
+    next;
+  }
+  # Jeśli nie jesteśmy w bloku do usunięcia, wydrukuj linię
+  !in_block {
+    print;
+  }
+' "$GRUB_FILE" > "$TEMP_FILE"
+
+# Zastąpienie starego pliku nowym, wyczyszczonym
+mv "$TEMP_FILE" "$GRUB_FILE"
+# Ustawienie prawidłowych uprawnień (mv może je czasem zmienić)
+chmod 755 "$GRUB_FILE"
+
+sudo sed -i '/^$/d' /etc/grub.d/40_custom
+
+echo "✅ Czyszczenie zakończone."
+
+# --- Aktualizacja GRUB ---
+echo "🔄 Aktualizuję konfigurację GRUB..."
+update-grub
+
+echo "🎉 Gotowe! GRUB zaktualizowany."
+echo ""
+read -p "👉 ENTER, aby zamknąć..." 

@@ -1,0 +1,210 @@
+#!/bin/bash
+# ================================
+# Automatyczny instalator Clonezilla USB-HDD/SSD
+# - Podział i formatowanie dysku USB
+# - Wykrywanie UUID
+# - Kopiowanie skryptów backup/restore
+# - Dodanie wpisów GRUB z PL językiem i klawiaturą
+# Autorzy:
+#  - [ski777000] (ski777000@gmail.com)  – pomysł, testy, rozwój
+#  - ChatGPT (OpenAI) – wsparcie przy pisaniu kodu
+# ================================
+
+ISO_FILENAME="clonezilla.iso"
+MOUNT_DIR="/mnt/clonezilla_data"
+GRUB_CUSTOM="/etc/grub.d/40_custom"
+MOUNT_ISO="/mnt/clonezilla_iso"
+
+# --- Sprawdzenie ROOT ---
+if [[ $EUID -ne 0 ]]; then
+    echo "❌ Uruchom jako root (sudo)."
+    exit 1
+fi
+
+# --- Twój oryginalny, działający blok ---
+SYS_PART=$(findmnt -n -o SOURCE /)
+SYS_UUID=$(blkid -s UUID -o value "$SYS_PART")
+OS_NAME=$(source /etc/os-release && clean="${NAME// /}" && echo "${clean////}")
+
+# --- JEDYNA ZMIANA: Dodajemy unikalność tylko do nazw skryptów ---
+# Pobieramy 4 znaki bez dotykania głównej zmiennej OS_NAME
+SUFFIX=$(echo "$SYS_UUID" | cut -c1-4)
+
+CLONE_SCRIPT_BACKUP="clone_${OS_NAME}_${SUFFIX}.sh"
+CLONE_SCRIPT_RESTORE="restore_${OS_NAME}_${SUFFIX}.sh"
+
+echo "📦 Wykryto system: $OS_NAME, ID: $SUFFIX, partycja: $SYS_PART"
+
+# --- Wykryte dyski USB ---
+echo "🔍 Lista dostępnych dysków (wszystkie):"
+lsblk -d -o NAME,SIZE,MODEL,TRAN | grep -E "usb|ata|nvme"
+
+read -p "💾 Podaj nazwę urządzenia USB (np. sdb): " USB_DISK
+USB_PATH="/dev/$USB_DISK"
+
+# --- Walidacja dysku ---
+if [[ ! -b $USB_PATH ]]; then
+    echo "❌ Nieprawidłowy dysk!"
+    exit 1
+fi
+
+# 🔒 Zabezpieczenie: nie pozwól przypadkowo nadpisać dysku systemowego
+if [[ "$USB_PATH" == "$SYS_PART" ]] || [[ "$USB_PATH" == /dev/$(lsblk -no pkname "$SYS_PART") ]]; then
+    echo "⛔ BŁĄD: Wybrany dysk ($USB_PATH) to dysk systemowy!"
+    exit 1
+fi
+
+# --- Podwójne potwierdzenie ---
+read -p "⚠️ Wszystkie dane na $USB_PATH zostaną usunięte! Wpisz 't' aby kontynuować: " CONFIRM1
+[[ "$CONFIRM1" != "t" ]] && { echo "❌ Anulowano."; exit 1; }
+read -p "⚠️ Potwierdź ponownie wpisując 't': " CONFIRM2
+[[ "$CONFIRM2" != "t" ]] && { echo "❌ Anulowano."; exit 1; }
+
+# --- Czyszczenie i partycjonowanie ---
+echo "🛠️ Odmontowuję wszystkie partycje na $USB_PATH..."
+umount ${USB_PATH}?* &>/dev/null
+
+echo "🛠️ Czyszczenie tablicy partycji i sygnatur..."
+wipefs -af "$USB_PATH" || true
+sgdisk --zap-all "$USB_PATH"
+
+echo "📐 Tworzenie partycji GPT: FAT32 (2GB) i EXT4 (reszta)..."
+sgdisk --new=1:0:+2G --change-name=1:'CLONEZILLA' "$USB_PATH"
+sgdisk --new=2:0:0 --change-name=2:'CLONEZILLA_DATA' "$USB_PATH"
+
+echo "🔄 Odświeżanie tabeli partycji..."
+partprobe "$USB_PATH"
+
+# --- Formatowanie ---
+echo "💿 Formatowanie pierwszej partycji (FAT32)..."
+mkfs.vfat -F 32 -n "CLONEZILLA" "${USB_PATH}1"
+
+echo "💿 Formatowanie drugiej partycji (EXT4)..."
+mkfs.ext4 -F -L "CLONEZILLA_DATA" "${USB_PATH}2"
+
+# --- Pobranie UUID ---
+UUID_ISO=$(blkid -s UUID -o value "${USB_PATH}1")
+UUID_DATA=$(blkid -s UUID -o value "${USB_PATH}2")
+
+echo "🔗 UUID FAT32: $UUID_ISO"
+echo "🔗 UUID EXT4: $UUID_DATA"
+
+# --- Montaż partycji ISO ---
+echo "✍️ Montuję i tworzę skrypty na partycji danych..."
+mkdir -p "$MOUNT_ISO"
+mount "${USB_PATH}1" "$MOUNT_ISO"
+# Usunięto błędną linię 'cp'
+#cp -r /tmp/system-backup3-skrypty "$MOUNT_ISO"
+echo "❌ Odmontowuję partycję fat32 z iso..."
+umount "$MOUNT_ISO"
+rmdir "$MOUNT_ISO"
+
+# --- Montaż partycji danych ---
+echo "✍️ Montuję partycję danych..."
+mkdir -p "$MOUNT_DIR"
+mount "${USB_PATH}2" "$MOUNT_DIR"
+sleep 2
+
+# NOWA POPRAWNA ŚCIEŻKA (ZGODNA Z PAKIETEM .DEB)
+SOURCE_SKRYPTY="/usr/share/grubzilla/grubzilla-skrypty"
+
+if [ -d "$SOURCE_SKRYPTY" ]; then
+    echo "📂 Kopiuję skrypty systemowe z $SOURCE_SKRYPTY..."
+    cp -r "$SOURCE_SKRYPTY" "$MOUNT_DIR"
+else
+    echo "❌ BŁĄD KRYTYCZNY: Nie znaleziono skryptów w $SOURCE_SKRYPTY!"
+    echo "Upewnij się, że pakiet grubzilla jest poprawnie zainstalowany."
+    umount "$MOUNT_DIR"
+    exit 1
+fi
+
+# Ustawienie uprawnień na dysku USB (partycja EXT4)
+chmod 777 -R "$MOUNT_DIR/grubzilla-skrypty"
+chmod +x "$MOUNT_DIR"/grubzilla-skrypty/konfigurator_OS.sh
+chmod +x "$MOUNT_DIR"/grubzilla-skrypty/konfiguratorOS-klik-terminal
+
+# --- Generowanie zawartości skryptu BACKUP ---
+cat <<EOF > "$MOUNT_DIR/$CLONE_SCRIPT_BACKUP"
+#!/bin/bash
+sudo mkdir -p /home/partimag
+sudo mount UUID=$UUID_DATA /home/partimag
+# Używamy PEŁNEGO UUID partycji, żeby system ją znalazł
+SYS_DEV=\$(blkid -U $SYS_UUID)
+# Nazwa folderu backupu na USB będzie miała Twój unikalny SUFFIX (np. LinuxMint_4814)
+/usr/sbin/ocs-sr -nogui -q2 -j2 -z9p -i 0 -sfsck -p poweroff saveparts "${OS_NAME}_${SUFFIX}-\$(date +%F-%H%M)" "\$SYS_DEV"
+EOF
+
+# --- Generowanie zawartości skryptu RESTORE ---
+cat <<EOF > "$MOUNT_DIR/$CLONE_SCRIPT_RESTORE"
+#!/bin/bash
+sudo mkdir -p /home/partimag
+sudo mount UUID=$UUID_DATA /home/partimag
+# Skrypt będzie szukał tylko backupów z Twoim unikalnym ID!
+LATEST_BACKUP_NAME=\$(ls -td /home/partimag/${OS_NAME}_${SUFFIX}-* 2>/dev/null | head -n1 | xargs -n1 basename)
+
+if [[ -z "\$LATEST_BACKUP_NAME" ]]; then
+    echo "❌ BŁĄD: Nie znaleziono backupu dla ${OS_NAME}_${SUFFIX}"
+    read -p "Naciśnij ENTER..."
+    exit 1
+fi
+
+SYS_DEV=\$(blkid -U $SYS_UUID)
+/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST_BACKUP_NAME" "\$SYS_DEV"
+EOF
+# --- Odmontowanie partycji danych ---
+echo "❌ Odmontowuję partycję danych..."
+umount "$MOUNT_DIR"
+rmdir "$MOUNT_DIR"
+
+# --- Pytanie o nazwę systemu do GRUB ---
+read -p "📝 Podaj nazwę systemu (do wyświetlenia w menu GRUB): " OS_GRUB_NAME
+
+# --- Dodanie wpisów GRUB ---
+cat <<EOF >> "$GRUB_CUSTOM"
+
+menuentry "CloneZilla - Automatyczny Backup Systemu $OS_GRUB_NAME (na USB)" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path="/$ISO_FILENAME"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl \
+        ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components \
+        username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path \
+        ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" \
+        ocs_live_run="bash /home/partimag/$CLONE_SCRIPT_BACKUP" toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+
+menuentry "CloneZilla - Automatyczne Przywracanie Systemu $OS_GRUB_NAME (ostatni zapisany obraz na USB)" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path="/$ISO_FILENAME"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl \
+        ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components \
+        username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path \
+        ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" \
+        ocs_live_run="bash /home/partimag/$CLONE_SCRIPT_RESTORE" toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+
+menuentry "CloneZilla - Standard TUI (PL) $OS_GRUB_NAME" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path="/$ISO_FILENAME"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl \
+        ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config components noswap edd=on \
+        nomodeset vga=791 findiso=\$iso_path toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+EOF
+
+# --- Aktualizacja GRUB ---
+update-grub
+
+echo "✅ Gotowe!"
+echo "💡 Skopiuj plik $ISO_FILENAME na pierwszą partycję FAT32 (CLONEZILLA)"
+echo ""
+
+zenity --info --title="GrubZilla" \
+   --text="<big><big>Instalacja zakończona !</big></big>\n\nInstrukcja obsługi znajduje się w menu obok ikony programu lub w folderze:\n/usr/share/doc/grubzilla/" \
+   --icon-name="grubzilla"
+
