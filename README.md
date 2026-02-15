@@ -45,8 +45,9 @@ użytkownika tworzona jest kopia zapasowa pliku 40_custom (tj. ustawień menu GR
 PS. Od jądra 5.3 w systemach Linux urządzenia blokowe są wykrywane niedeterministycznie, tj. niemal losowo. Dlatego w programie GrubZilla
 wykrywanie partycji systemowych opiera się na numerze UUID partycji/dysku. Prawdopodobnie jądro 6.15.x powróci do stabilnego stanu.
 W podmenu programu GrubZilla znajduje się również dodatkowy skrypt : Usuwator-GRUB  który może pomóc w szybkim usunięciu wszystkich wpisów
-zawierających nazwę CloneZilla w pliku 40_custom.
+zawierających nazwę CloneZilla w pliku 40_custom.Podczas przywracania systemu operacyjnego wybierana jest zawsze ostatnia / najnowsza wersja
+obrazu z USB, jeśli chcemy użyć innej możemy wybrać z menu Grub opcję : Clonezilla - Standard TUI żeby samodzielnie wskazać inną kopię systemu.
 UWAGA !
 Aby poprawnie wykonać kopię zapasową na dysk USB lub przywrócić obraz systemu (CloneZilla) z menu Grub, podczas uruchamiania komputera dysk
 USB musi zostać podłączony przed pojawieniem się menu Grub !!! 
-Podczas przywracania systemu operacyjnego wybierana jest zawsze ostatnia / najnowsza wersja obrazu z USB, jeśli chcemy użyć innej możemy wybrać z menu Grub opcję : Clonezilla - Standard TUI żeby samodzielnie wskazać inną kopię systemu.
+
