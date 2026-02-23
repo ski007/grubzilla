@@ -1,17 +1,20 @@
 #!/bin/bash
 set -e
 
-# Upewniamy się, że pliki mają dobre uprawnienia po wypakowaniu
-chown root:root /usr/share/applications/grubzilla.desktop
-chmod 644 /usr/share/applications/grubzilla.desktop
-chown root:root /usr/share/pixmaps/grubzilla.png
-chmod 644 /usr/share/pixmaps/grubzilla.png
+# 1. Poprawiamy uprawnienia zbiorczo dla pewności (opcjonalne, ale dobre)
+chmod 644 /usr/share/applications/grubzilla*.desktop || true
+chmod 644 /usr/share/pixmaps/grubzilla.png || true
 
-# Odświeżamy bazy danych (to musi być w paczce!)
-update-desktop-database -q /usr/share/applications || true
-gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
+# 2. Odświeżamy bazę skrótów menu (bardzo ważne dla widoczności ikonki)
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications || true
+fi
 
-# Twoje pozostałe komendy
-update-grub
+# 3. Odświeżamy cache ikon (tylko jeśli używasz folderu icons, ale nie zaszkodzi)
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor || true
+fi
+
+# USUNIĘTO: update-grub (niepotrzebne na etapie instalacji samej aplikacji)
 
 exit 0
