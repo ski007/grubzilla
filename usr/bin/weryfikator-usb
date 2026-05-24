@@ -1,0 +1,93 @@
+#!/bin/bash
+# =================================================================
+# WERYFIKATOR / SYNCHRONIZATOR USB - Wersja Graficzna
+# Sprawdza czy menu GRUB pasuje do wpiętego USB.
+# =================================================================
+
+# --- AUTOMATYCZNE PODNOSZENIE UPRAWNIEŃ ---
+if [[ $EUID -ne 0 ]]; then
+    # Sprawdzamy, czy mamy dostęp do pkexec
+    pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$0" "$@"
+    exit $?
+fi
+
+# ... reszta Twojego skryptu ...
+
+GRUB_CUSTOM="/etc/grub.d/40_custom"
+MOUNT_ISO_DIR="/mnt/clonezilla_iso_temp"
+
+# --- Sprawdzenie ROOT ---
+if [[ $EUID -ne 0 ]]; then
+    zenity --error --title="Błąd" --text="Uruchom program jako root (sudo)."
+    exit 1
+fi
+
+# --- Wykrywanie USB ---
+while true; do
+    USB_ISO_PART=$(blkid -L "CLONEZILLA")
+    
+    if [ -z "$USB_ISO_PART" ]; then
+         LISTA_USB=$(lsblk -dno NAME,SIZE,MODEL,TRAN | grep "usb" | awk '{printf "%s\n%s\n%s\n%s\n", $1, $2, $3, $4}')
+        
+        if [ -z "$LISTA_USB" ]; then
+            zenity --question --title="Weryfikator GrubZilla" \
+                --text="❌ Nie znaleziono pendrive'a GrubZilla.\n\nWepnij go i kliknij 'Tak' aby spróbować ponownie."
+            if [ $? -ne 0 ]; then exit 1; fi
+            continue
+        fi
+
+        WYBOR=$(echo "$LISTA_USB" | zenity --list \
+            --title="Weryfikator - Wybór USB" \
+            --text="Wybierz urządzenie USB do weryfikacji:" \
+            --column="Dysk" --column="Rozmiar" --column="Model" --column="Typ" \
+            --width=600 --height=300)
+        
+        if [ $? -ne 0 ] || [ -z "$WYBOR" ]; then exit 1; fi
+        USB_DISK=$(echo "$WYBOR" | cut -d'|' -f1)
+        USB_ISO_PART="/dev/${USB_DISK}1"
+    fi
+    break
+done
+
+# --- Akcja ---
+mkdir -p "$MOUNT_ISO_DIR"
+if ! mount "$USB_ISO_PART" "$MOUNT_ISO_DIR"; then
+    zenity --error --text="Nie udało się zamontować partycji $USB_ISO_PART"
+    exit 1
+fi
+
+UUID_USB=$(blkid -s UUID -o value "$USB_ISO_PART")
+
+# --- LOGIKA WERYFIKACJI ---
+if grep -q "ID_USB:$UUID_USB" "$GRUB_CUSTOM"; then
+    zenity --info --title="GrubZilla - OK" --width=350 \
+        --text="✅ Menu GRUB jest już aktualne dla tego dysku USB.\nNie musisz nic robić."
+else
+    # Jeśli nie pasuje, pytamy o synchronizację
+    zenity --question --title="Wymagana synchronizacja" \
+        --text="🔄 Wykryto inny dysk USB lub brak wpisów w GRUB.\n\nCzy chcesz zsynchronizować menu z tym pendrivem?"
+    
+    if [ $? -eq 0 ]; then
+        if [ -f "$MOUNT_ISO_DIR/grubzilla_full_config.txt" ]; then
+            (
+            echo "20"; echo "# Usuwanie starych wpisów..."
+            sed -i '/### GRUBZILLA START ###/,/### GRUBZILLA KONIEC ###/d' "$GRUB_CUSTOM"
+            
+            echo "50"; echo "# Kopiowanie nowej konfiguracji z USB..."
+            cat "$MOUNT_ISO_DIR/grubzilla_full_config.txt" >> "$GRUB_CUSTOM"
+            
+            echo "80"; echo "# Aktualizacja menu GRUB..."
+            update-grub &>/dev/null
+            echo "100"; echo "# Gotowe!"
+            ) | zenity --progress --title="Synchronizacja" --text="Aktualizowanie..." --auto-close
+            
+            zenity --info --text="✅ Menu GRUB zostało zaktualizowane pod ten konkretny dysk USB."
+        else
+            zenity --error --text="❌ BŁĄD: Na tym USB brakuje pliku 'grubzilla_full_config.txt'.\n\nUżyj najpierw opcji 'Aktualizator-Grub'."
+        fi
+    fi
+fi
+
+umount "$MOUNT_ISO_DIR"
+rmdir "$MOUNT_ISO_DIR"
+exit 0

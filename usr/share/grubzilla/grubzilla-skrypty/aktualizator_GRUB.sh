@@ -1,0 +1,107 @@
+#!/bin/bash
+# =================================================================
+# AKTUALIZATOR MENU GRUB - Wersja Graficzna
+# - Automatycznie wykrywa USB GrubZilla
+# - Zbiera konfiguracje i aktualizuje 40_custom
+# =================================================================
+
+GRUB_CUSTOM="/etc/grub.d/40_custom"
+MOUNT_ISO_DIR="/mnt/clonezilla_iso_temp"
+
+# --- Sprawdzenie ROOT (Graficznie) ---
+if [[ $EUID -ne 0 ]]; then
+    zenity --error --title="Błąd uprawnień" --text="Uruchom program jako root (sudo)."
+    exit 1
+fi
+
+# --- Wykrywanie i wybór dysku USB ---
+while true; do
+    # Próba automatycznego znalezienia partycji o nazwie CLONEZILLA
+    USB_ISO_PART=$(blkid -L "CLONEZILLA")
+    
+    if [ -z "$USB_ISO_PART" ]; then
+        # Jeśli nie znaleziono po nazwie, pozwól wybrać z listy
+        LISTA_USB=$(lsblk -dno NAME,SIZE,MODEL,TRAN | grep "usb" | awk '{print $1"|"$2"|"$3" "$4"|"$5}')
+        
+        if [ -z "$LISTA_USB" ]; then
+            zenity --question --title="Aktualizator GrubZilla" --width=400 \
+                --text="❌ Nie znaleziono pendrive'a GrubZilla.\n\nPodłącz go i kliknij 'Tak' aby odświeżyć, lub 'Nie' aby wyjść."
+            if [ $? -ne 0 ]; then exit 1; fi
+            continue
+        fi
+
+        WYBOR=$(echo "$LISTA_USB" | zenity --list \
+            --title="Aktualizator - Wybór USB" \
+            --text="Nie wykryto automatycznie partycji CLONEZILLA.\nWybierz urządzenie USB ręcznie:" \
+            --column="Dysk" --column="Rozmiar" --column="Model" --column="Typ" \
+            --width=600 --height=300)
+        
+        if [ $? -ne 0 ] || [ -z "$WYBOR" ]; then exit 1; fi
+        USB_DISK=$(echo "$WYBOR" | cut -d'|' -f1)
+        USB_ISO_PART="/dev/${USB_DISK}1"
+    fi
+    break
+done
+
+# --- Montowanie i przetwarzanie (Pasek postępu) ---
+(
+echo "10"; echo "# Montowanie partycji USB..."
+mkdir -p "$MOUNT_ISO_DIR"
+mount "$USB_ISO_PART" "$MOUNT_ISO_DIR" || exit 1
+
+echo "30"; echo "# Sprawdzanie plików konfiguracyjnych..."
+if ! ls "$MOUNT_ISO_DIR"/*_grub*.txt &>/dev/null; then
+    echo "ERROR: Nie znaleziono plików menu na USB!"
+    umount "$MOUNT_ISO_DIR"
+    rmdir "$MOUNT_ISO_DIR"
+    exit 1
+fi
+
+echo "50"; echo "# Tworzenie kopii zapasowej 40_custom..."
+BACKUP_USER=${SUDO_USER:-$USER}
+HOME_DIR=$(getent passwd "$BACKUP_USER" | cut -d: -f6)
+cp "$GRUB_CUSTOM" "$HOME_DIR/40_custom_backup_$(date +%F_%H%M%S).bak"
+
+echo "60"; echo "# Usuwanie starych wpisów GrubZilla..."
+sed -i '/### GRUBZILLA START ###/,/### GRUBZILLA KONIEC ###/d' "$GRUB_CUSTOM"
+
+echo "70"; echo "# Budowanie nowego menu..."
+UUID_USB=$(blkid -s UUID -o value "$USB_ISO_PART")
+TEMP_BLOCK=$(mktemp)
+
+{
+    echo "### GRUBZILLA START ###"
+    echo "# ID_USB:$UUID_USB"
+    # Sortowanie naturalne, aby "1_" było zawsze pierwsze
+    for entry_file in $(ls "$MOUNT_ISO_DIR"/*_grub*.txt | sort -V); do
+        echo ""
+        cat "$entry_file"
+    done
+    echo ""
+    echo "### GRUBZILLA KONIEC ###"
+} > "$TEMP_BLOCK"
+
+cat "$TEMP_BLOCK" >> "$GRUB_CUSTOM"
+cp "$TEMP_BLOCK" "$MOUNT_ISO_DIR/grubzilla_full_config.txt"
+rm "$TEMP_BLOCK"
+
+echo "80"; echo "# Odświeżanie systemowego menu GRUB..."
+update-grub &>/dev/null
+
+echo "100"; echo "# Gotowe!"
+umount "$MOUNT_ISO_DIR"
+rmdir "$MOUNT_ISO_DIR"
+
+) | zenity --progress --title="Aktualizator GrubZilla" --text="Rozpoczynam aktualizację..." --percentage=0 --auto-close
+
+# --- Sprawdzenie czy nie wystąpił błąd w potoku ---
+if [ $? -ne 0 ]; then
+    zenity --error --title="Błąd" --text="Wystąpił problem podczas aktualizacji.\nUpewnij się, że pendrive jest poprawnie przygotowany."
+    exit 1
+fi
+
+# --- Finał ---
+zenity --info --title="Aktualizacja zakończona" --width=400 \
+    --text="<b>Menu GRUB zostało pomyślnie zaktualizowane!</b>\n\nPodłączone systemy z USB są teraz widoczne przy starcie komputera."
+
+exit 0

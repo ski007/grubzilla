@@ -1,0 +1,25 @@
+[Desktop Entry]
+Version=1.0
+Name=GrubZilla (Menu)
+Name[pl_PL]=GrubZilla (Menu)
+Comment=Tworzy i zarządza kopiami zapasowymi systemu
+Exec=/usr/bin/grubzilla-menu
+Icon=grubzilla
+Terminal=false
+Type=Application
+Categories=System;Utility;
+Actions=AktualizujGRUB;UsunGRUB;
+
+[Desktop Action AktualizujGRUB]
+Name=Aktualizator-GRUB
+Exec=/usr/bin/aktualizator-GRUB  
+Icon=aktualizator
+
+[Desktop Action UsunGRUB]
+Name=Usuwator-GRUB
+Exec=/usr/bin/usuwator-GRUB      
+Icon=usuwator
+
+
+
+
