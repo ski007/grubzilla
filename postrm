@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+GRUB_FILE="/etc/grub.d/40_custom"
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    echo "🧹 Removing traces of GrubZilla..."
+
+    if [ -f "$GRUB_FILE" ]; then
+        # Usuwamy blok główny
+        sed -i '/### GRUBZILLA START ###/,/### GRUBZILLA KONIEC ###/d' "$GRUB_FILE" || true
+        sed -i '/### GRUBZILLA WYBRANY START ###/,/### GRUBZILLA WYBRANY KONIEC ###/d' "$GRUB_FILE" || true
+        # Usuwamy stare menuentry
+        sed -i '/menuentry "CloneZilla/,/^}/d' "$GRUB_FILE" || true
+        # Usuwamy puste linie w sposób bezpieczny:
+        sed -i '/^$/N;/^\n$/D' "$GRUB_FILE" || true
+    fi
+
+    # Aktualizacja GRUB
+    if command -v update-grub > /dev/null 2>&1; then
+        update-grub || echo "Warning: GRUB could not be updated."
+    fi
+fi
+
+exit 0
