@@ -2,7 +2,9 @@
 
 GrubZilla is based on **CloneZilla**  - a free backup utility for HDD/SSD partitions and disks. CloneZilla is a powerful tool with many advanced options, but unfortunately it also uses a rather old-fashioned TUI (Text User Interface), which may discourage beginner users from using it.
 GrubZilla simplifies backup creation and restoration of Linux operating systems directly from the GRUB menu to a single HDD/SSD USB drive (all Ubuntu and Debian-based Linux distributions available for PC).
+
 **Warning!**
+
 After connecting the USB drive, GrubZilla will format the entire USB device and create two partitions:
 
 - 2 GB FAT32 partition
