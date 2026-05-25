@@ -9,6 +9,7 @@ After connecting the USB drive, GrubZilla will format the entire USB device and 
 - remaining space as ext4
 
 **How It Works**
+
 After installing the .deb package, before launching the program from:
 Menu → Administration in Linux Mint (other Linux distributions may place the program in a different menu category, e.g. “System”) you must connect the USB drive first. After launching GrubZilla(menu), the program control panel will appear with several options to choose from:
 
@@ -50,6 +51,7 @@ USB-HDD/SSD (FAT32):/system_name_id_grub_menu.txt
 
    To save all Linux system configurations into the GRUB menu, return to the main operating system where the update-grub command is managed.
 **IMPORTANT!**
+
 GRUB menu management should only be performed from one operating system. Otherwise, the GRUB configuration may become disorganized.
 Connect the USB drive and choose:
 
@@ -62,6 +64,7 @@ After updating GRUB and rebooting the system, additional entries should appear i
 <img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/2e930179-7b64-4cd3-a080-ded0d0caf859" />
 
 **Important!** 
+
 Formatting the currently used system partition is blocked for safety reasons.
 However, GrubZilla cannot prevent accidental formatting of another USB drive if the user 
 selects the wrong device. Be very careful when choosing the disk to format.
@@ -75,12 +78,14 @@ This utility helps quickly remove all CloneZilla-related entries from the 40_cus
 During system restoration, the latest backup image stored on the USB drive is selected automatically. If you want to restore a different backup version, choose: Clonezilla - Standard TUI from the GRUB menu and manually select another image in CloneZilla.
 
 **Backup Selection Feature**
+
 To simplify backup management, GrubZilla includes the menu option: Backup Selection
 This allows you to manually select a specific backup image.After confirmation and GRUB update, the selected backup will appear as an additional GRUB menu entry. :
 
 <img width="350" height="250" alt="image" src="https://github.com/user-attachments/assets/5a375c6e-e2ec-4da9-8238-2966d11297d9" />
 
 **Using Multiple USB Backup Drives**
+
 GrubZilla also supports easy usage of multiple USB HDD/SSD backup drives.
 
 **How It Works**
