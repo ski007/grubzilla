@@ -101,7 +101,8 @@ If one USB drive becomes full and you do not want to delete older backups:
 Then use the menu option: Verifier USB. The script checks whether the connected USB drive matches the UUID configuration stored in 40_custom. If everything matches → no action is taken. If not → the script offers to update the GRUB configuration automatically.
 An option has also been added to detect Windows, provided it is not additionally encrypted with BitLocker, and to add a backup and restore option for this system to the GRUB menu.
 
-Script Permissions
+**Script Permissions**
+
 If you run scripts manually in the terminal, make sure they have executable permissions:
 sudo chmod +x /path_to_script/aktualizator_GRUB.sh
 
