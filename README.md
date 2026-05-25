@@ -17,7 +17,8 @@ Menu → Administration in Linux Mint (other Linux distributions may place the p
 
 <img width="600" height="320" alt="image" src="https://github.com/user-attachments/assets/2347d5be-d9a5-4cb6-822a-c18da40a928a" />
 
-First Launch  - USB Preparation
+**First Launch  - USB Preparation**
+
 When launching the first option: GrubZilla, the program will perform its main tasks:
 
 - ​    formatting the USB drive
