@@ -1,8 +1,8 @@
 **GrubZilla** is a program that allows you to launch CloneZilla directly from the GRUB menu and create or restore Linux system backups with a single click from that menu.
 
 GrubZilla is based on **CloneZilla**  - a free backup utility for HDD/SSD partitions and disks. CloneZilla is a powerful tool with many advanced options, but unfortunately it also uses a rather old-fashioned TUI (Text User Interface), which may discourage beginner users from using it.
-   GrubZilla simplifies backup creation and restoration of Linux operating systems directly from the GRUB menu to a single HDD/SSD USB drive (all Ubuntu and Debian-based Linux distributions available for PC).
-Warning!
+GrubZilla simplifies backup creation and restoration of Linux operating systems directly from the GRUB menu to a single HDD/SSD USB drive (all Ubuntu and Debian-based Linux distributions available for PC).
+**Warning!**
 After connecting the USB drive, GrubZilla will format the entire USB device and create two partitions:
 
 - 2 GB FAT32 partition
@@ -28,11 +28,12 @@ You must also enter a name for your operating system.
 
 <img width="300" height="120" alt="image" src="https://github.com/user-attachments/assets/25862e81-edb6-4a0e-9f64-465d326556a9" />
 
-After formatting the USB drive, copy the CloneZilla ISO image to the FAT32 partition. Partition label: CLONEZILLA 
+After formatting the USB drive, copy the CloneZilla ISO image to the FAT32 partition. Partition label: CLONEZILLA. 
+
 Download :  https://clonezilla.org/downloads.php
 
 Rename the ISO file to: /clonezilla.iso
-Note:If one of the partitions is not visible after formatting, disconnect and reconnect the USB device. The program will update GRUB and create a backup copy of the 40_custom file in the user’s home directory.
+**Note:** If one of the partitions is not visible after formatting, disconnect and reconnect the USB device. The program will update GRUB and create a backup copy of the 40_custom file in the user’s home directory.
 Configuring Additional Linux Systems
 You can then switch to another Linux system installed on your computer (if available).
 On the second system: 
@@ -60,7 +61,7 @@ After updating GRUB and rebooting the system, additional entries should appear i
 
 <img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/2e930179-7b64-4cd3-a080-ded0d0caf859" />
 
-Important! 
+**Important!** 
 Formatting the currently used system partition is blocked for safety reasons.
 However, GrubZilla cannot prevent accidental formatting of another USB drive if the user 
 selects the wrong device. Be very careful when choosing the disk to format.
@@ -69,16 +70,17 @@ Because of this, GrubZilla identifies system partitions using UUID numbers inste
 GrubZilla also provides a tool/script called: Remover GRUB
 This utility helps quickly remove all CloneZilla-related entries from the 40_custom file without uninstalling the program.
 
-Restoring a System
+**Restoring a System**
+
 During system restoration, the latest backup image stored on the USB drive is selected automatically. If you want to restore a different backup version, choose: Clonezilla - Standard TUI from the GRUB menu and manually select another image in CloneZilla.
 
-Backup Selection Feature
+**Backup Selection Feature**
 To simplify backup management, GrubZilla includes the menu option: Backup Selection
 This allows you to manually select a specific backup image.After confirmation and GRUB update, the selected backup will appear as an additional GRUB menu entry. :
 
 <img width="350" height="250" alt="image" src="https://github.com/user-attachments/assets/5a375c6e-e2ec-4da9-8238-2966d11297d9" />
 
-Using Multiple USB Backup Drives
+**Using Multiple USB Backup Drives**
 GrubZilla also supports easy usage of multiple USB HDD/SSD backup drives.
 
 **How It Works**
@@ -94,7 +96,7 @@ Script Permissions
 If you run scripts manually in the terminal, make sure they have executable permissions:
 sudo chmod +x /path_to_script/aktualizator_GRUB.sh
 
-​                                                                                        **FINAL WARNING**
+​                                                                                                        **FINAL WARNING**
 
 **To correctly create or restore a backup image using CloneZilla from the GRUB menu: The USB drive must be connected BEFORE the GRUB menu appears during computer startup.**
 
