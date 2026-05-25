@@ -21,7 +21,7 @@ When launching the first option: GrubZilla, the program will perform its main ta
 - ​    formatting the USB drive
 - ​    configuring all files required for proper operation.
 
-In the displayed window you can choose the USB device: sda, sdb, sdc etc.
+In the displayed window you can choose the USB device: **sda**, **sdb**, **sdc** etc.
 
 <img width="400" height="250" alt="image" src="https://github.com/user-attachments/assets/bff94244-a77a-4f05-9839-207da6610294" />
 
