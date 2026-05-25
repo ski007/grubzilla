@@ -101,9 +101,11 @@ GrubZilla also supports easy usage of multiple USB HDD/SSD backup drives.
 **How It Works**
 
 If one USB drive becomes full and you do not want to delete older backups:
-    1. use another USB drive,
-    2. repeat all steps from this tutorial,
-    3. first remove the old GRUB configuration using: Remover Grub
+
+1. ​    use another USB drive,
+2. ​    repeat all steps from this tutorial,
+3. ​    first remove the old GRUB configuration using: Remover Grub
+
 Then use the menu option: Verifier USB. The script checks whether the connected USB drive matches the UUID configuration stored in 40_custom. If everything matches → no action is taken. If not → the script offers to update the GRUB configuration automatically.
 An option has also been added to detect Windows, provided it is not additionally encrypted with BitLocker, and to add a backup and restore option for this system to the GRUB menu.
 
