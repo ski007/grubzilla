@@ -42,9 +42,9 @@ Configuring Additional Linux Systems
 You can then switch to another Linux system installed on your computer (if available).
 On the second system: 
 
-    connect the USB drive,
-    read and save the operating system configuration using the script: configurator_OS.sh
-    
+connect the USB drive,
+read and save the operating system configuration using the script: configurator_OS.sh
+
 **Location:**
 
 USB ext4 partition: CLONEZILLA_DATA/grubzilla-scripts 
