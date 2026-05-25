@@ -42,8 +42,8 @@ Configuring Additional Linux Systems
 You can then switch to another Linux system installed on your computer (if available).
 On the second system: 
 
-    1. connect the USB drive,
-    2. read and save the operating system configuration using the script: configurator_OS.sh
+    connect the USB drive,
+    read and save the operating system configuration using the script: configurator_OS.sh
     
 **Location:**
 
