@@ -51,12 +51,11 @@ On the second system:
 
 **Location:**
 
-USB ext4 partition: CLONEZILLA_DATA/grubzilla-scripts 
-or installed system path:   
+USB ext4 partition:  `CLONEZILLA_DATA/grubzilla-scripts` 
 
-`/usr/share/grubzilla/grubzilla-scripts` 
+or installed system path: `/usr/share/grubzilla/grubzilla-scripts` 
 
-You can also use the script:   `configuratorOS-click-terminal`
+You can also use the script:  `configuratorOS-click-terminal`
 
 Assign a name for the operating system that should appear in the GRUB menu.
 If you have multiple Linux systems installed, repeat these steps on each system.
