@@ -41,9 +41,12 @@ Rename the ISO file to: /clonezilla.iso
 Configuring Additional Linux Systems
 You can then switch to another Linux system installed on your computer (if available).
 On the second system: 
+
     1. connect the USB drive,
     2. read and save the operating system configuration using the script: configurator_OS.sh
-Location:
+    
+**Location:**
+
 USB ext4 partition: CLONEZILLA_DATA/grubzilla-scripts 
 or installed system path: /usr/share/grubzilla/grubzilla-scripts 
 You can also use the script: configuratorOS-click-terminal
