@@ -34,7 +34,8 @@ After formatting the USB drive, copy the CloneZilla ISO image to the FAT32 parti
 Download :  https://clonezilla.org/downloads.php
 
 Rename the ISO file to: /clonezilla.iso
-**Note:** If one of the partitions is not visible after formatting, disconnect and reconnect the USB device. The program will update GRUB and create a backup copy of the 40_custom file in the user’s home directory.
+
+**Note:**   If one of the partitions is not visible after formatting, disconnect and reconnect the USB device. The program will update GRUB and create a backup copy of the 40_custom file in the user’s home directory.
 Configuring Additional Linux Systems
 You can then switch to another Linux system installed on your computer (if available).
 On the second system: 
@@ -50,6 +51,7 @@ All configurations will be saved as text files on:
 USB-HDD/SSD (FAT32):/system_name_id_grub_menu.txt
 
    To save all Linux system configurations into the GRUB menu, return to the main operating system where the update-grub command is managed.
+   
 **IMPORTANT!**
 
 GRUB menu management should only be performed from one operating system. Otherwise, the GRUB configuration may become disorganized.
