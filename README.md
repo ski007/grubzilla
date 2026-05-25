@@ -4,9 +4,11 @@ GrubZilla is based on **CloneZilla**  - a free backup utility for HDD/SSD partit
    GrubZilla simplifies backup creation and restoration of Linux operating systems directly from the GRUB menu to a single HDD/SSD USB drive (all Ubuntu and Debian-based Linux distributions available for PC).
 Warning!
 After connecting the USB drive, GrubZilla will format the entire USB device and create two partitions:
-    • 2 GB FAT32 partition
-    • remaining space as ext4
-How It Works
+
+- 2 GB FAT32 partition
+- remaining space as ext4
+
+**How It Works**
 After installing the .deb package, before launching the program from:
 Menu → Administration in Linux Mint (other Linux distributions may place the program in a different menu category, e.g. “System”) you must connect the USB drive first. After launching GrubZilla(menu), the program control panel will appear with several options to choose from:
 
@@ -14,8 +16,10 @@ Menu → Administration in Linux Mint (other Linux distributions may place the p
 
 First Launch  - USB Preparation
 When launching the first option: GrubZilla, the program will perform its main tasks:
-    • formatting the USB drive
-    • configuring all files required for proper operation.
+
+- ​    formatting the USB drive
+- ​    configuring all files required for proper operation.
+
 In the displayed window you can choose the USB device: sda, sdb, sdc etc.
 
 <img width="400" height="250" alt="image" src="https://github.com/user-attachments/assets/bff94244-a77a-4f05-9839-207da6610294" />
@@ -25,7 +29,7 @@ You must also enter a name for your operating system.
 <img width="300" height="120" alt="image" src="https://github.com/user-attachments/assets/25862e81-edb6-4a0e-9f64-465d326556a9" />
 
 After formatting the USB drive, copy the CloneZilla ISO image to the FAT32 partition. Partition label: CLONEZILLA 
-https://clonezilla.org/downloads.php
+Download :  https://clonezilla.org/downloads.php
 
 Rename the ISO file to: /clonezilla.iso
 Note:If one of the partitions is not visible after formatting, disconnect and reconnect the USB device. The program will update GRUB and create a backup copy of the 40_custom file in the user’s home directory.
@@ -44,15 +48,14 @@ All configurations will be saved as text files on:
 USB-HDD/SSD (FAT32):/system_name_id_grub_menu.txt
 
    To save all Linux system configurations into the GRUB menu, return to the main operating system where the update-grub command is managed.
-IMPORTANT!
+**IMPORTANT!**
 GRUB menu management should only be performed from one operating system. Otherwise, the GRUB configuration may become disorganized.
 Connect the USB drive and choose:
-    
-    • GRUB Updater
-    
-    • or use the submenu in GrubZilla(menu)
-    
-    • or run the script: updater_GRUB.sh
+
+- GRUB Updater
+- or use the submenu in GrubZilla(menu)
+- or run the script: updater_GRUB.sh
+
 After updating GRUB and rebooting the system, additional entries should appear in the GRUB menu. :
 
 <img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/2e930179-7b64-4cd3-a080-ded0d0caf859" />
@@ -78,7 +81,7 @@ This allows you to manually select a specific backup image.After confirmation an
 Using Multiple USB Backup Drives
 GrubZilla also supports easy usage of multiple USB HDD/SSD backup drives.
 
-How It Works
+**How It Works**
 
 If one USB drive becomes full and you do not want to delete older backups:
     1. use another USB drive,
