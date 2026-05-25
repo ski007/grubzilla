@@ -51,8 +51,12 @@ On the second system:
 **Location:**
 
 USB ext4 partition: CLONEZILLA_DATA/grubzilla-scripts 
-or installed system path:   `/usr/share/grubzilla/grubzilla-scripts` 
+or installed system path:   
+
+`/usr/share/grubzilla/grubzilla-scripts` 
+
 You can also use the script:   `configuratorOS-click-terminal`
+
 Assign a name for the operating system that should appear in the GRUB menu.
 If you have multiple Linux systems installed, repeat these steps on each system.
 All configurations will be saved as text files on: 
@@ -111,7 +115,8 @@ An option has also been added to detect Windows, provided it is not additionally
 
 **Script Permissions**
 
-If you run scripts manually in the terminal, make sure they have executable permissions:
+If you run scripts manually in the terminal, make sure they have executable permissions:  
+
 `sudo chmod +x /path_to_script/aktualizator_GRUB.sh`
 
 ​                                                                                                        **FINAL WARNING**
