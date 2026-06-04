@@ -17,8 +17,8 @@ fi
 # Sprawdzanie czy Zenity jest w systemie (na wszelki wypadek)
 if ! command -v zenity >/dev/null; then
     # Jeśli nie ma zenity, musimy użyć terminala jako ratunku
-    echo "Błąd: Program 'zenity' nie jest zainstalowany. Zainstaluj go: sudo apt install zenity"
-    read -p "Naciśnij Enter, aby zamknąć..."
+    echo "Error: 'zenity' is not installed. Please install it: sudo apt install zenity"
+    read -p "Press Enter to close..."
     exit 1
 fi
 
@@ -28,7 +28,7 @@ USB_DATA_PART=$(blkid -L "CLONEZILLA_DATA")
 MOUNT_POINT=$(findmnt -n -o TARGET "$USB_DATA_PART")
 
 if [ -z "$MOUNT_POINT" ]; then
-    zenity --error --title="Błąd" --text="Nie znaleziono pendrive'a z partycją CLONEZILLA_DATA.\n\nUpewnij się, że pendrive jest podpięty i zamontowany."
+    zenity --error --title="Error" --text="The USB stick with the CLONEZILLA_DATA partition could not be found.\n\nMake sure the USB stick is connected and recognised."
     exit 1
 fi
 
@@ -44,8 +44,8 @@ fi
 
 # Krytyczne sprawdzenie:
 if [ -z "$SYS_UUID" ]; then
-    zenity --error --title="Błąd krytyczny" \
-        --text="Nie udało się pobrać UUID partycji systemowej.\n\nMożliwe, że uruchamiasz skrypt na systemie Live, który nie jest jeszcze zainstalowany na dysku."
+    zenity --error --title="Critical error" \
+        --text="The UUID of the system partition could not be retrieved.\n\nYou may be running a script on the Live system that isn't installed on the disk yet."
     exit 1
 fi
 
@@ -54,8 +54,8 @@ SUFFIX=$(echo "$SYS_UUID" | cut -c1-4)
 
 # --- Graficzne pytanie o nazwę systemu ---
 OS_GRUB_NAME=$(zenity --entry \
-    --title="Konfigurator GrubZilla" \
-    --text="Podaj nazwę dla tego systemu:" \
+    --title="Configurator GrubZilla" \
+    --text="Enter a name for this system:" \
     --entry-text="$OS_NAME ($SUFFIX)")
 
 if [ -z "$OS_GRUB_NAME" ]; then exit 1; fi
@@ -67,7 +67,7 @@ UUID_DATA=$(blkid -s UUID -o value "$USB_DATA_PART")
 
 # --- Generowanie plików (Pasek postępu) ---
 (
-echo "10"; echo "# Tworzenie skryptów operacyjnych..."
+echo "10"; echo "# Creating operational scripts..."
 # Skrypty Backup/Restore
 cat <<EOF > "$MOUNT_POINT/clone_${OS_NAME}_${SUFFIX}.sh"
 #!/bin/bash
@@ -90,7 +90,7 @@ EOF
 chmod +x "$MOUNT_POINT/clone_${OS_NAME}_${SUFFIX}.sh"
 chmod +x "$MOUNT_POINT/restore_${OS_NAME}_${SUFFIX}.sh"
 
-echo "60"; echo "# Przygotowywanie wpisu GRUB..."
+echo "60"; echo "# Preparing the GRUB entry..."
 MOUNT_ISO="/mnt/tmp_gz_iso"
 mkdir -p "$MOUNT_ISO"
 mount "${USB_DEV_BASE}1" "$MOUNT_ISO"
@@ -99,30 +99,30 @@ MENU_FILE="OS_${OS_NAME}_${SUFFIX}_grub_menu.txt"
 ISO_FILENAME="clonezilla.iso"
 
 cat <<EOF > "$MOUNT_ISO/$MENU_FILE"
-menuentry "CloneZilla - Backup systemu $OS_GRUB_NAME" {
+menuentry "CloneZilla - System Backup $OS_GRUB_NAME" {
     search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
     set iso_path="/$ISO_FILENAME"
     loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/clone_${OS_NAME}_${SUFFIX}.sh" toram=filesystem.squashfs
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/clone_${OS_NAME}_${SUFFIX}.sh" toram=filesystem.squashfs
     initrd (loop)/live/initrd.img
 }
 
-menuentry "CloneZilla - Przywracanie systemu $OS_GRUB_NAME" {
+menuentry "CloneZilla - System Restore $OS_GRUB_NAME" {
     search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
     set iso_path="/$ISO_FILENAME"
     loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/restore_${OS_NAME}_${SUFFIX}.sh" toram=filesystem.squashfs
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/restore_${OS_NAME}_${SUFFIX}.sh" toram=filesystem.squashfs
     initrd (loop)/live/initrd.img
 }
 EOF
 
 umount "$MOUNT_ISO"
 rmdir "$MOUNT_ISO"
-echo "100"; echo "# Gotowe!"
-) | zenity --progress --title="Konfigurator GrubZilla" --text="Przetwarzanie danych..." --auto-close
+echo "100"; echo "# All done!"
+) | zenity --progress --title="Configurator GrubZilla" --text="Processing data..." --auto-close
 
 # --- Finał ---
-zenity --info --title="Sukces !" --text="Konfiguracja Systemu <b>$OS_GRUB_NAME</b> została zapisana na USB.\nTeraz uruchom 'Aktualizator Grub' w głównym systemie, aby uaktualnić menu Grub."
+zenity --info --title="Success!" --text="System Configuration <b>$OS_GRUB_NAME</b> was saved to a USB drive.\nNow run 'Updater Grub' in the main system to update the Grub menu."
 
 
 

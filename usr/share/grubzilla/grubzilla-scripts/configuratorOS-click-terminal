@@ -7,14 +7,14 @@ USER=$(whoami)
 USB_MOUNT="CLONEZILLA_DATA"
 
 # Sprawdzenie, czy katalog 'grubzilla-skrypty' istnieje na partycji EXT4
-if [ ! -d "/media/$USER/$USB_MOUNT/grubzilla-skrypty" ]; then
-    echo "Katalog '/media/$USER/$USB_MOUNT/grubzilla-skrypty' nie istnieje."
+if [ ! -d "/media/$USER/$USB_MOUNT/grubzilla-scripts" ]; then
+    echo "Catalog '/media/$USER/$USB_MOUNT/grubzilla-scripts' does not exist."
     exit 1
 fi
 
 # Przejdź do katalogu 'grubzilla-skrypty'
-cd "/media/$USER/$USB_MOUNT/grubzilla-skrypty" || { echo "Błąd: Nie udało się przejść do katalogu."; exit 1; }
+cd "/media/$USER/$USB_MOUNT/grubzilla-scripts" || { echo "Error: Unable to navigate to the directory."; exit 1; }
 
 # Uruchom skrypt konfigurator_OS.sh
-sudo bash konfigurator_OS.sh
+sudo bash configurator_OS.sh
 

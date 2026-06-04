@@ -1,239 +1,219 @@
 #!/bin/bash
-# ================================
-# Automatyczny instalator Clonezilla USB-HDD/SSD
-# - Podział i formatowanie dysku USB
-# - Wykrywanie UUID
-# - Kopiowanie skryptów backup/restore
-# - Dodanie wpisów GRUB z PL językiem i klawiaturą
-# Autorzy:
-#  - [ski777000] (ski777000@gmail.com)  – pomysł, testy, rozwój
-#  - Gemini / ChatGPT (OpenAI) – wsparcie przy pisaniu kodu
-# ================================
-# Graficzny instalator GrubZilla (Clonezilla USB)
-# ================================
+# =================================================================
+# GrubZilla - Wersja Rozwojowa (Linux + Windows Support)
+# =================================================================
 
 # --- AUTOMATYCZNE PODNOSZENIE UPRAWNIEŃ ---
 if [[ $EUID -ne 0 ]]; then
-    # Sprawdzamy, czy mamy dostęp do pkexec
     pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$0" "$@"
     exit $?
 fi
-
-# ... reszta Twojego skryptu ...
 
 ISO_FILENAME="clonezilla.iso"
 MOUNT_DIR="/mnt/clonezilla_data"
 GRUB_CUSTOM="/etc/grub.d/40_custom"
 MOUNT_ISO="/mnt/clonezilla_iso"
+SOURCE_SKRYPTY="/usr/share/grubzilla/grubzilla-scripts"
 
-# --- Sprawdzenie ROOT (Graficznie) ---
-if [[ $EUID -ne 0 ]]; then
-    zenity --error --title="Błąd uprawnień" --text="Uruchom program jako root (sudo)."
-    exit 1
-fi
+# --- Funkcja wykrywania Windows ---
+detect_windows() {
+    for dev in $(lsblk -rno NAME,FSTYPE | grep -i "ntfs" | awk '{print $1}'); do
+        local dev_path="/dev/$dev"
+        local w_uuid=""
+        mkdir -p /mnt/win_tmp
+        if mount -o ro,noload "$dev_path" /mnt/win_tmp 2>/dev/null; then
+            if [ -d "/mnt/win_tmp/Windows/System32" ] || [ -d "/mnt/win_tmp/windows/system32" ]; then
+                w_uuid=$(blkid -s UUID -o value "$dev_path")
+                umount /mnt/win_tmp
+                echo "$w_uuid"
+                rmdir /mnt/win_tmp
+                return 0
+            fi
+            umount /mnt/win_tmp
+        fi
+    done
+    [ -d "/mnt/win_tmp" ] && rmdir /mnt/win_tmp
+    return 1
+}
 
-# --- Wykrywanie obecnego systemu ---
+# --- Wykrywanie Linuxa ---
 SYS_PART=$(findmnt -n -o SOURCE /)
 SYS_UUID=$(blkid -s UUID -o value "$SYS_PART")
+[ -z "$SYS_UUID" ] && SYS_UUID=$(lsblk -no UUID "$SYS_PART" | head -n1)
 
-# Jeśli blkid zawiedzie (np. na Live USB), spróbujmy innej metody
 if [ -z "$SYS_UUID" ]; then
-    # Próba wyciągnięcia UUID z nazwy partycji, jeśli findmnt coś zwrócił
-    SYS_UUID=$(lsblk -no UUID "$SYS_PART" | head -n1)
-fi
-
-# Krytyczne sprawdzenie:
-if [ -z "$SYS_UUID" ]; then
-    zenity --error --title="Błąd krytyczny" \
-        --text="Nie udało się pobrać UUID partycji systemowej.\n\nMożliwe, że uruchamiasz skrypt na systemie Live, który nie jest jeszcze zainstalowany na dysku."
+    zenity --error --title="Critical error" --text="The Linux UUID could not be retrieved."
     exit 1
 fi
 
+WIN_UUID=$(detect_windows)
 OS_NAME=$(source /etc/os-release && clean="${NAME// /}" && echo "${clean////}")
 SUFFIX=$(echo "$SYS_UUID" | cut -c1-4)
 
-CLONE_SCRIPT_BACKUP="clone_${OS_NAME}_${SUFFIX}.sh"
-CLONE_SCRIPT_RESTORE="restore_${OS_NAME}_${SUFFIX}.sh"
-
-# --- [POPRAWIONE] Wybór dysku USB ---
+# --- Wybór dysku USB ---
 while true; do
-    # Pobieramy dane i formatujemy je tak, by każdy element był w nowej linii dla Zenity
-    # lsblk poda: sdb 14G Model_Nazwa usb
     LISTA_USB=$(lsblk -dno NAME,SIZE,MODEL,TRAN | grep "usb" | awk '{printf "%s\n%s\n%s\n%s\n", $1, $2, $3, $4}')
-
     if [ -z "$LISTA_USB" ]; then
-        zenity --question --title="GrubZilla" --width=400 \
-            --text="❌ Nie wykryto dysku USB.\n\nPodłącz pendrive i kliknij 'Tak' aby odświeżyć."
-        if [ $? -ne 0 ]; then exit 1; fi
+        zenity --question --title="GrubZilla" --width=400 --text="❌ No USB device detected. Please connect one and click Yes." || exit 1
         continue
     fi
-
-    # Teraz Zenity dostaje dane "po kolei" i samo układa je w wiersze według liczby kolumn
     WYBOR=$(echo "$LISTA_USB" | zenity --list \
-        --title="GrubZilla - Wybór dysku USB" \
-        --text="Wybierz właściwy dysk z listy:" \
-        --column="Dysk" --column="Rozmiar" --column="Model" --column="Typ" \
-        --width=600 --height=350)
-
-    if [ $? -ne 0 ] || [ -z "$WYBOR" ]; then exit 1; fi
-    
-    # Zenity przy takim ustawieniu zwróci tylko pierwszą kolumnę (NAME), czyli np. "sdb"
-    USB_DISK="$WYBOR"
-    USB_PATH="/dev/$USB_DISK"
+    --text="Please select the USB drive you want to format:" \
+    --title="GrubZilla - USB selection" \
+    --column="Disk" \
+    --column="Size" \
+    --column="Model" \
+    --column="Type" \
+    --width=600 \
+    --height=350)
+    [ $? -ne 0 ] || [ -z "$WYBOR" ] && exit 1
+    USB_PATH="/dev/$WYBOR"
     break
 done
 
-# --- [GRAFICZNIE] Pytanie o nazwę systemu ---
-OS_GRUB_NAME=$(zenity --entry \
-    --title="GrubZilla - Nazwa w Menu" \
-    --text="Podaj nazwę systemu do wyświetlenia w menu GRUB:" \
-    --entry-text="Linux")
+OS_GRUB_NAME=$(zenity --entry --title="The name of the Linux system" --width=450 --text="Enter a name for Linux in the menu:" --entry-text="Linux")
+[ -z "$OS_GRUB_NAME" ] && exit 1
 
-if [ -z "$OS_GRUB_NAME" ]; then exit 1; fi
+zenity --warning --title="WARNING" --text="Formatting $USB_PATH! Should I continue?" --width=500 || exit 1
 
-# --- [GRAFICZNIE] Ostateczne ostrzeżenie ---
-zenity --warning --title="OSTRZEŻENIE" --width=400 \
-    --text="Czy na pewno chcesz sformatować dysk <b>$USB_PATH</b>?\nOperacja jest nieodwracalna!"
-if [ $? -ne 0 ]; then exit 1; fi
-
-# --- [GRAFICZNIE] Proces przygotowania z Paskiem Postępu ---
+# --- Proces przygotowania dysku ---
 (
-echo "10"; echo "# Odmontowywanie partycji..."
+echo "10"; echo "# Cleaning and partitioning..."
 umount ${USB_PATH}?* &>/dev/null
-
-echo "20"; echo "# Czyszczenie tablicy partycji..."
 wipefs -af "$USB_PATH" &>/dev/null
 sgdisk --zap-all "$USB_PATH" &>/dev/null
-
-echo "40"; echo "# Tworzenie nowych partycji (GPT)..."
 sgdisk --new=1:0:+2G --change-name=1:'CLONEZILLA' "$USB_PATH" &>/dev/null
 sgdisk --new=2:0:0 --change-name=2:'CLONEZILLA_DATA' "$USB_PATH" &>/dev/null
-partprobe "$USB_PATH"
-sleep 2
+partprobe "$USB_PATH" && sleep 2
 
-echo "60"; echo "# Formatowanie partycji FAT32..."
+echo "60"; echo "# Formatting the partition..."
 mkfs.vfat -F 32 -n "CLONEZILLA" "${USB_PATH}1" &>/dev/null
-
-echo "80"; echo "# Formatowanie partycji EXT4..."
 mkfs.ext4 -F -L "CLONEZILLA_DATA" "${USB_PATH}2" &>/dev/null
+echo "100"; echo "# All done!"
+) | zenity --progress --title="GrubZilla" --auto-close
 
-echo "100"; echo "# Gotowe!"
-) | zenity --progress --title="GrubZilla" --text="Przygotowanie dysku..." --percentage=0 --auto-close
-
-# Pobranie UUID po formatowaniu
 UUID_ISO=$(blkid -s UUID -o value "${USB_PATH}1")
 UUID_DATA=$(blkid -s UUID -o value "${USB_PATH}2")
 
-# --- Kopiowanie skryptów i konfiguracja (Tło) ---
+# --- Kopiowanie skryptów i konfiguracja ---
 mkdir -p "$MOUNT_DIR"
 mount "${USB_PATH}2" "$MOUNT_DIR"
-SOURCE_SKRYPTY="/usr/share/grubzilla/grubzilla-skrypty"
 
+# 1. Kopiowanie zasobów z paczki .deb
 if [ -d "$SOURCE_SKRYPTY" ]; then
-    cp -r "$SOURCE_SKRYPTY" "$MOUNT_DIR"
-    chmod 777 -R "$MOUNT_DIR/grubzilla-skrypty"
-    chmod +x "$MOUNT_DIR"/grubzilla-skrypty/*.sh &>/dev/null
+    cp -r "$SOURCE_SKRYPTY" "$MOUNT_DIR/"
+    chmod -R 777 "$MOUNT_DIR/grubzilla-scripts"
 fi
 
-# Generowanie skryptów Backup/Restore
-cat <<EOF > "$MOUNT_DIR/$CLONE_SCRIPT_BACKUP"
+# 2. Skrypty Linux
+CLONE_L_B="clone_${OS_NAME}_${SUFFIX}.sh"
+CLONE_L_R="restore_${OS_NAME}_${SUFFIX}.sh"
+
+cat <<EOF > "$MOUNT_DIR/$CLONE_L_B"
 #!/bin/bash
-sudo mkdir -p /home/partimag
-sudo mount UUID=$UUID_DATA /home/partimag
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
 SYS_DEV=\$(blkid -U $SYS_UUID)
 /usr/sbin/ocs-sr -nogui -q2 -j2 -z9p -i 0 -sfsck -p poweroff saveparts "${OS_NAME}_${SUFFIX}-\$(date +%F-%H%M)" "\$SYS_DEV"
 EOF
 
-cat <<EOF > "$MOUNT_DIR/$CLONE_SCRIPT_RESTORE"
+cat <<EOF > "$MOUNT_DIR/$CLONE_L_R"
 #!/bin/bash
-sudo mkdir -p /home/partimag
-sudo mount UUID=$UUID_DATA /home/partimag
-LATEST_BACKUP_NAME=\$(ls -td /home/partimag/${OS_NAME}_${SUFFIX}-* 2>/dev/null | head -n1 | xargs -n1 basename)
-if [[ -z "\$LATEST_BACKUP_NAME" ]]; then exit 1; fi
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
+LATEST=\$(ls -td /home/partimag/${OS_NAME}_${SUFFIX}-* 2>/dev/null | head -n1 | xargs -n1 basename)
 SYS_DEV=\$(blkid -U $SYS_UUID)
-/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST_BACKUP_NAME" "\$SYS_DEV"
+[ -n "\$LATEST" ] && /usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST" "\$SYS_DEV"
 EOF
 
-umount "$MOUNT_DIR"
-rmdir "$MOUNT_DIR"
+# 3. Skrypty Windows (opcjonalnie)
+if [ -n "$WIN_UUID" ]; then
+    cat <<EOF > "$MOUNT_DIR/win_backup.sh"
+#!/bin/bash
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
+W_DEV=\$(blkid -U $WIN_UUID)
+/usr/sbin/ocs-sr -nogui -q2 -j2 -z1p -i 0 -sfsck -p poweroff saveparts "Windows_Backup-\$(date +%F-%H%M)" "\$W_DEV"
+EOF
 
-# --- Przygotowanie pliku Menu na USB ---
+    cat <<EOF > "$MOUNT_DIR/win_restore.sh"
+#!/bin/bash
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
+LATEST_W=\$(ls -td /home/partimag/Windows_Backup-* 2>/dev/null | head -n1 | xargs -n1 basename)
+W_DEV=\$(blkid -U $WIN_UUID)
+[ -n "\$LATEST_W" ] && /usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST_W" "\$W_DEV"
+EOF
+fi
+
+chmod +x "$MOUNT_DIR"/*.sh
+umount "$MOUNT_DIR"
+
+# --- Generowanie plików Menu na USB i aktualizacja GRUB ---
 mkdir -p "$MOUNT_ISO"
 mount "${USB_PATH}1" "$MOUNT_ISO"
 MAIN_MENU_FILE="1_${OS_NAME}_${SUFFIX}_grub_menu.txt"
 
+# Budowanie zawartości menu
 cat <<EOF > "$MOUNT_ISO/$MAIN_MENU_FILE"
-menuentry "CloneZilla - Backup systemu $OS_GRUB_NAME (na USB)" {
+menuentry "CloneZilla - System Backup $OS_GRUB_NAME" {
     search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
     set iso_path="/$ISO_FILENAME"
     loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/$CLONE_SCRIPT_BACKUP" toram=filesystem.squashfs
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/$CLONE_L_B" toram=filesystem.squashfs
     initrd (loop)/live/initrd.img
 }
-menuentry "CloneZilla - Przywracanie systemu $OS_GRUB_NAME (ostatni zapisany obraz z USB)" {
+menuentry "CloneZilla - System Restore $OS_GRUB_NAME" {
     search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
     set iso_path="/$ISO_FILENAME"
     loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/$CLONE_SCRIPT_RESTORE" toram=filesystem.squashfs
-    initrd (loop)/live/initrd.img
-}
-menuentry "CloneZilla - Standard TUI (PL)" {
-    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
-    set iso_path="/$ISO_FILENAME"
-    loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config components noswap edd=on nomodeset vga=791 findiso=\$iso_path toram=filesystem.squashfs
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/$CLONE_L_R" toram=filesystem.squashfs
     initrd (loop)/live/initrd.img
 }
 EOF
 
-umount "$MOUNT_ISO"
-rmdir "$MOUNT_ISO"
+if [ -n "$WIN_UUID" ]; then
+cat <<EOF >> "$MOUNT_ISO/$MAIN_MENU_FILE"
+menuentry "CloneZilla - Backup OS WINDOWS" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path="/$ISO_FILENAME"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/win_backup.sh" toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+menuentry "CloneZilla - Restore OS WINDOWS" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path="/$ISO_FILENAME"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/win_restore.sh" toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+EOF
+fi
 
-# --- Aktualizacja systemowego GRUB (Z paskiem postępu) ---
+# Standardowe TUI na koniec
+cat <<EOF >> "$MOUNT_ISO/$MAIN_MENU_FILE"
+menuentry "CloneZilla - Standard TUI (EN)" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path="/$ISO_FILENAME"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang="en_US.UTF-8" ocs_keymap="us" config components noswap edd=on nomodeset vga=791 findiso=\$iso_path toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+EOF
+
+# Aktualizacja systemowego GRUB
 (
-echo "50"; echo "# Usuwanie starych wpisów..."
+echo "50"; echo "# Update 40_custom..."
 sed -i '/### GRUBZILLA START ###/,/### GRUBZILLA KONIEC ###/d' "$GRUB_CUSTOM"
-
-echo "70"; echo "# Dodawanie nowych wpisów do GRUB..."
-NEW_ENTRIES=$(cat <<EOF
-menuentry "CloneZilla - Backup systemu $OS_GRUB_NAME (na USB)" {
-    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
-    set iso_path="/$ISO_FILENAME"
-    loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/$CLONE_SCRIPT_BACKUP" toram=filesystem.squashfs
-    initrd (loop)/live/initrd.img
-}
-menuentry "CloneZilla - Przywracanie systemu $OS_GRUB_NAME (ostatni zapisany obraz z USB)" {
-    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
-    set iso_path="/$ISO_FILENAME"
-    loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch="yes" findiso=\$iso_path ocs_prerun="sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag" ocs_live_run="bash /home/partimag/$CLONE_SCRIPT_RESTORE" toram=filesystem.squashfs
-    initrd (loop)/live/initrd.img
-}
-menuentry "CloneZilla - Standard TUI (PL)" {
-    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
-    set iso_path="/$ISO_FILENAME"
-    loopback loop (\$iso_dev)\$iso_path
-    linux (loop)/live/vmlinuz boot=live locales=pl_PL.UTF-8 keyboard-layouts=pl ocs_lang="pl_PL.UTF-8" ocs_keymap="pl" config components noswap edd=on nomodeset vga=791 findiso=\$iso_path toram=filesystem.squashfs
-    initrd (loop)/live/initrd.img
-}
-EOF
-)
-
 {
     echo "### GRUBZILLA START ###"
     echo "# ID_USB:$UUID_ISO"
-    echo "$NEW_ENTRIES"
+    cat "$MOUNT_ISO/$MAIN_MENU_FILE"
     echo "### GRUBZILLA KONIEC ###"
 } >> "$GRUB_CUSTOM"
-
-echo "90"; echo "# Odświeżanie menu GRUB (może to chwilę potrwać)..."
+echo "80"; echo "# update-grub..."
 update-grub &>/dev/null
-echo "100"; echo "# Gotowe!"
-) | zenity --progress --title="GrubZilla" --text="Aktualizacja systemu..." --percentage=0 --auto-close
+echo "100"; echo "# Success!"
+) | zenity --progress --title="Finalization" --auto-close
 
-# --- Finał ---
-zenity --info --title="GrubZilla" --width=450 \
-   --text="<big><b>Instalacja zakończona sukcesem!</b></big>\n\n1. Skopiuj plik <b>$ISO_FILENAME</b> na partycję CLONEZILLA.\n2. Twoje menu GRUB zostało zaktualizowane.\n3. Skrypty zostały skopiowane na USB."
+umount "$MOUNT_ISO" && rmdir "$MOUNT_ISO" && rmdir "$MOUNT_DIR" 2>/dev/null
 
+zenity --info --title="Done" --text="GrubZilla has been configured.\nWindows Support: $([ -n "$WIN_UUID" ] && echo "YES" || echo "NO (not detected)")"
 exit 0

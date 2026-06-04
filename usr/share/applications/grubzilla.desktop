@@ -2,23 +2,23 @@
 Version=1.0
 Name=GrubZilla (Menu)
 Name[pl_PL]=GrubZilla (Menu)
-Comment=Tworzy i zarządza kopiami zapasowymi systemu
+Comment=Creates and manages system backups
 Exec=/usr/bin/grubzilla-menu
 Icon=grubzilla
 Terminal=false
 Type=Application
 Categories=System;Utility;
-Actions=AktualizujGRUB;UsunGRUB;
+Actions=UpdaterGRUB;RemoverGRUB;
 
-[Desktop Action AktualizujGRUB]
-Name=Aktualizator-GRUB
-Exec=/usr/bin/aktualizator-GRUB  
-Icon=aktualizator
+[Desktop Action UpdaterGRUB]
+Name=Updater-GRUB
+Exec=/usr/bin/updater-GRUB  
+Icon=updater
 
-[Desktop Action UsunGRUB]
-Name=Usuwator-GRUB
-Exec=/usr/bin/usuwator-GRUB      
-Icon=usuwator
+[Desktop Action RemoverGRUB]
+Name=Remover-GRUB
+Exec=/usr/bin/remover-GRUB      
+Icon=remover
 
 
 

@@ -14,10 +14,11 @@ MAIN_ICON="/usr/share/icons/hicolor/64x64/apps/grubzilla.png"
 PATH_ICO="/usr/share/icons/hicolor/64x64/apps"
 
 ICO_MAIN="$PATH_ICO/grubzilla.png"
-ICO_REFRESH="$PATH_ICO/aktualizator.png"
-ICO_CLEAR="$PATH_ICO/usuwator.png"
-ICO_SEARCH="$PATH_ICO/weryfikator-usb.png"
+ICO_REFRESH="$PATH_ICO/updater.png"
+ICO_CLEAR="$PATH_ICO/remover.png"
+ICO_SEARCH="$PATH_ICO/verifier.png"
 ICO_HELP="$PATH_ICO/help.png"
+ICO_PICK="$PATH_ICO/backup-selection.png"
 
 # Sprawdzenie, czy główny plik istnieje, jeśli nie - dajemy zamiennik
 [ ! -f "$ICO_MAIN" ] && ICO_MAIN="system-run"
@@ -27,27 +28,30 @@ ICO_HELP="$PATH_ICO/help.png"
 [ ! -f "$ICO_HELP" ] && ICO_HELP="help-browser"
 
 
+
 # 3. Wyświetlanie listy
-WYBOR=$(yad --list --title="GrubZilla - Panel Sterowania" \
+WYBOR=$(yad --list --title="GrubZilla - Control Panel" \
     --window-icon="$MAIN_ICON" \
-    --width=900 --height=550 --center --fixed \
+    --width=1100 --height=550 --center --fixed \
     --image-column=1 \
-    --text="<span size='x-large' weight='bold' color='#2e7d32'>Witaj w GrubZilla!</span>\n<span size='large'>Wybierz zadanie do wykonania:</span>" \
+    --text="<span size='x-large' weight='bold' color='#2e7d32'>Welcome to GrubZilla!</span>\n<span size='large'>Select a task to complete:</span>" \
     --text-align=center \
-    --column="":IMG --column="Zadanie":TEXT --column="Opis":TEXT \
-    "$ICO_MAIN" "<span size='large' weight='bold'>GrubZilla</span>" "<span size='medium'>Formatuj USB / Nadaj nazwę systemu / Uaktualnij GRUB itd.</span>" \
-    "$ICO_REFRESH" "<span size='large' weight='bold'>Aktualizator GRUB</span>" "<span size='medium'>Dodaj konfiguracje wszystkich OS/Linux z USB do GRUB</span>" \
-    "$ICO_CLEAR" "<span size='large' weight='bold'>Usuwator GRUB</span>" "<span size='medium'>Usuń wszystkie wpisy z menu GRUB (programu GrubZilla)</span>" \
-    "$ICO_SEARCH" "<span size='large' weight='bold'>Weryfikator USB</span>" "<span size='medium'>Weryfikuj USB czy jest zgodny (UUID) z konfiguracją GRUB</span>" \
-    "$ICO_HELP" "<span size='large' weight='bold'>Instrukcja obsługi</span>" "<span size='medium'>Otwórz dokumentację w przeglądarce (PDF)</span>" \
+    --column="":IMG --column="Task":TEXT --column="Description":TEXT \
+    "$ICO_MAIN" "<span size='large' weight='bold'>GrubZilla</span>" "<span size='medium'>Format USB / Name the system / Update GRUB, etc.</span>" \
+    "$ICO_REFRESH" "<span size='large' weight='bold'>Updater GRUB</span>" "<span size='medium'>Add configurations for all OS/Linux systems from USB to GRUB</span>" \
+    "$ICO_CLEAR" "<span size='large' weight='bold'>Remover GRUB</span>" "<span size='medium'>Delete all entries from the GRUB menu (prog. GrubZilla)</span>" \
+    "$ICO_SEARCH" "<span size='large' weight='bold'>Verifier USB</span>" "<span size='medium'>Verify that the USB drive is compatible (UUID) with the GRUB configuration</span>" \
+    "$ICO_PICK" "<span size='large' weight='bold'>Backup selection</span>" "Select a specific image from the USB drive and add an entry to the GRUB menu" \
+    "$ICO_HELP" "<span size='large' weight='bold'>User manual</span>" "<span size='medium'>Open documentation in your browser (PDF)</span>" \
     --print-column=2 --no-headers --separator="" --ellipsize=NONE --expand-column=3)
 
 # 4. Obsługa wyboru
 case "$WYBOR" in
     *"GrubZilla"*) /usr/bin/grubzilla ;;
-    *"Aktualizator GRUB"*) /usr/bin/aktualizator-GRUB ;;
-    *"Usuwator GRUB"*) /usr/bin/usuwator-GRUB ;;
-    *"Weryfikator USB"*) /usr/bin/weryfikator-usb ;;
-    *"Instrukcja obsługi"*) xdg-open /usr/share/doc/grubzilla/grubzilla.pdf ;;
+    *"Updater GRUB"*) /usr/bin/updater-GRUB ;;
+    *"Remover GRUB"*) /usr/bin/remover-GRUB ;;
+    *"Verifier USB"*) /usr/bin/verifier-usb ;;
+    *"Backup selection"*) /usr/bin/grubzilla-select ;;
+    *"User manual"*) xdg-open /usr/share/doc/grubzilla/grubzilla.pdf ;;
     *) exit 0 ;;
 esac

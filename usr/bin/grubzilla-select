@@ -1,0 +1,142 @@
+#!/bin/bash
+# =================================================================
+# GrubZilla - Moduł: Wybór konkretnego obrazu (v1.1-0)
+# =================================================================
+
+if [[ $EUID -ne 0 ]]; then
+    pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$0" "$@"
+    exit $?
+fi
+
+GRUB_CUSTOM="/etc/grub.d/40_custom"
+MOUNT_DATA="/mnt/grubzilla_data_tmp"
+MOUNT_ISO="/mnt/grubzilla_iso_tmp"
+
+# --- 1. Wykrywanie USB ---
+USB_DATA_PART=$(blkid -L "CLONEZILLA_DATA")
+USB_ISO_PART=$(blkid -L "CLONEZILLA")
+
+if [ -z "$USB_DATA_PART" ] || [ -z "$USB_ISO_PART" ]; then
+    zenity --error --title="Błąd" --text="The GrubZilla USB drive was not found.\nPlug it in and try again."
+    exit 1
+fi
+
+# --- 2. Pobieranie listy obrazów ---
+mkdir -p "$MOUNT_DATA"
+mount "$USB_DATA_PART" "$MOUNT_DATA"
+
+# Szukamy folderów Clonezilla (kryterium: folder zawiera plik 'parts')
+OBRAZY=$(find "$MOUNT_DATA" -maxdepth 1 -type d -exec test -e "{}/parts" \; -print | xargs -n1 basename | sort -r)
+
+if [ -z "$OBRAZY" ]; then
+    zenity --error --text="No images were found on the USB drive."
+    umount "$MOUNT_DATA" && rmdir "$MOUNT_DATA"
+    exit 1
+fi
+
+# --- 3. Okno wyboru (Graficzne) ---
+WYBRANY=$(echo "$OBRAZY" | zenity --list \
+    --title="GrubZilla - Selecting a restore point" \
+    --text="Select the backup you want to add to the Start menu:" \
+    --column="Saved copies (Data and System)" \
+    --width=550 --height=400)
+
+if [ -z "$WYBRANY" ]; then
+    umount "$MOUNT_DATA" && rmdir "$MOUNT_DATA"
+    exit 0
+fi
+
+# --- 4. Inteligencja: Gdzie to przywrócić? (Dynamiczne szukanie UUID) ---
+
+# 1. Odczytujemy z obrazu nazwę partycji źródłowej (np. nvme0n1p3)
+SRC_PART=$(cat "$MOUNT_DATA/$WYBRANY/parts" | head -n1)
+
+# 2. Wyciągamy UUID - dodajemy 'head -n1', żeby brał tylko JEDEN wynik
+TARGET_UUID=$(grep "$SRC_PART" "$MOUNT_DATA/$WYBRANY/blkid.list" | grep -oP 'UUID="\K[^"]+' | head -n1)
+
+# 3. Zapasowe szukanie - tu też dodajemy 'head -n1'
+if [ -z "$TARGET_UUID" ]; then
+    TARGET_UUID=$(cat "$MOUNT_DATA/$WYBRANY/info-uuid-bdev_id.txt" | grep "$SRC_PART" | awk '{print $2}' | head -n1)
+fi
+
+# 4. Sprawdzamy, czy w ogóle mamy UUID
+if [ -z "$TARGET_UUID" ]; then
+    zenity --error --text="Error: Unable to read the target UUID from the image $WYBRANY."
+    umount "$MOUNT_DATA" && rmdir "$MOUNT_DATA"
+    exit 1
+fi
+
+# KONIEC SEKCHJI 4 - NIE DODAWAJ NIC WIĘCEJ O LINUX/WINDOWS!
+
+# --- 5. Przygotowanie skryptu na USB (Z naprawionym przekazywaniem UUID) ---
+UUID_DATA=$(lsblk -no UUID $(blkid -L "CLONEZILLA_DATA"))
+
+cat <<EOF > "$MOUNT_DATA/custom_restore_run.sh"
+#!/bin/bash
+# 1. Montowanie bazy obrazów
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
+
+# 2. Szukanie partycji docelowej PO UUID
+TARGET_DEV=\$(blkid -U $TARGET_UUID)
+
+# 3. Jeśli blkid zawiedzie, używamy findfs 
+if [ -z "\$TARGET_DEV" ]; then
+    TARGET_DEV=\$(findfs UUID=$TARGET_UUID)
+fi
+
+# 4. Wywołanie Clonezilli z parametrami
+# Teraz \$TARGET_DEV nie będzie puste, bo Clonezilla znajdzie je w locie
+/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "$WYBRANY" "\$TARGET_DEV"
+EOF
+
+chmod +x "$MOUNT_DATA/custom_restore_run.sh"
+
+# --- 6. Aktualizacja GRUB ---
+# Pobieramy UUID dla partycji ISO (CLONEZILLA)
+while grep -q "### GRUBZILLA WYBRANY START ###" "$GRUB_CUSTOM"; do
+    sed -i '/### GRUBZILLA WYBRANY START ###/,/### GRUBZILLA WYBRANY KONIEC ###/d' "$GRUB_CUSTOM"
+done
+UUID_ISO=$(lsblk -no UUID $(blkid -L "CLONEZILLA"))
+
+# Pobieramy UUID dla partycji DATA (CLONEZILLA_DATA)
+UUID_DATA=$(lsblk -no UUID $(blkid -L "CLONEZILLA_DATA"))
+
+# Dodatkowy test: jeśli nadal pusto, używamy metody przez findfs
+if [ -z "$UUID_ISO" ]; then
+    UUID_ISO=$(findfs LABEL="CLONEZILLA" | xargs blkid -s UUID -o value)
+fi
+if [ -z "$UUID_DATA" ]; then
+    UUID_DATA=$(findfs LABEL="CLONEZILLA_DATA" | xargs blkid -s UUID -o value)
+fi
+
+# Ostateczna weryfikacja - usuwamy ewentualne białe znaki/entery
+UUID_ISO=$(echo $UUID_ISO | tr -d '[:space:]')
+UUID_DATA=$(echo $UUID_DATA | tr -d '[:space:]')
+
+# Sprawdzamy, czy wynik to na pewno UUID (brak slasha na początku)
+if [[ "$UUID_ISO" == /* ]] || [ -z "$UUID_ISO" ]; then
+    zenity --error --text="Critical error: Unable to retrieve the UUID. \nResult: $UUID_ISO \n\nMake sure the USB drive is properly labeled."
+    exit 1
+fi
+
+NEW_ENTRY="### GRUBZILLA WYBRANY START ###
+menuentry \"---> RESTORE: $WYBRANY <---\" {
+    search --no-floppy --set=iso_dev --fs-uuid $UUID_ISO
+    set iso_path=\"/clonezilla.iso\"
+    loopback loop (\$iso_dev)\$iso_path
+    linux (loop)/live/vmlinuz boot=live locales=en_US.UTF-8 keyboard-layouts=us ocs_lang=\"en_US.UTF-8\" ocs_keymap=\"us\" config edd=on nomodeset components union=overlay username=user hostname=debian noswap ocs_live_batch=\"yes\" findiso=\$iso_path ocs_prerun=\"sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag\" ocs_live_run=\"bash /home/partimag/custom_restore_run.sh\" toram=filesystem.squashfs
+    initrd (loop)/live/initrd.img
+}
+### GRUBZILLA WYBRANY KONIEC ###"
+
+echo "$NEW_ENTRY" >> "$GRUB_CUSTOM"
+
+(
+echo "50"; echo "# Refreshing the GRUB menu..."
+update-grub &>/dev/null
+echo "100"; echo "# All done!"
+) | zenity --progress --title="GrubZilla" --text="Configuring the Start menu..." --auto-close --pulsate
+
+zenity --info --title="Completed" --text="<b>All done!</b>\n\nSelected image: <i>$WYBRANY</i> has been added to the GRUB menu.\nYou can now restart your computer and begin the restore process."
+
+exit 0

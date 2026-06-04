@@ -12,18 +12,18 @@ GRUB_FILE="/etc/grub.d/40_custom"
 
 # --- Sprawdzenie, czy plik istnieje ---
 if [ ! -f "$GRUB_FILE" ]; then
-    zenity --error --title="Błąd" --text="Plik $GRUB_FILE nie istnieje."
+    zenity --error --title="Error" --text="File $GRUB_FILE  does not exist."
     exit 1
 fi
 
 # --- Sprawdzenie, czy jest coś do roboty ---
 if ! grep -qE "### GRUBZILLA START ###|menuentry.*CloneZilla" "$GRUB_FILE"; then
-    zenity --info --title="GrubZilla" --text="Nie znaleziono żadnych wpisów do usunięcia. Twój GRUB jest czysty."
+    zenity --info --title="GrubZilla" --text="No entries were found to delete. Your GRUB is clean."
     exit 0
 fi
 
 # --- Potwierdzenie użytkownika ---
-zenity --question --title="Usuwanie wpisów" --text="Czy na pewno chcesz usunąć wszystkie wpisy GrubZilla z menu GRUB?\nZostanie utworzona kopia zapasowa pliku." --width=350 || exit 0
+zenity --question --title="Deleting entries" --text="Are you sure you want to remove all GrubZilla entries from the GRUB menu?\nA backup of the file will be created." --width=350 || exit 0
 
 # --- Wyznaczanie ścieżek PRZED blokiem postępu ---
 REAL_USER=$(logname 2>/dev/null || echo $USER)
@@ -34,25 +34,25 @@ BACKUP_PATH="$USER_HOME/40_custom_backup_$TIMESTAMP"
 
 # --- OPERACJE ---
 (
-echo "10"; echo "# Tworzę kopię zapasową w $USER_HOME..."
+echo "10"; echo "# I'm backing up to $USER_HOME..."
 cp "$GRUB_FILE" "$BACKUP_PATH"
 chown "$REAL_USER:$REAL_USER" "$BACKUP_PATH"
 
-echo "40"; echo "# Usuwanie wpisów z pliku systemowego..."
+echo "40"; echo "# Deleting entries from the system file..."
 # Tutaj dzieje się magia usuwania:
 sed -i '/### GRUBZILLA START ###/,/### GRUBZILLA KONIEC ###/d' "$GRUB_FILE"
 sed -i '/menuentry "CloneZilla/,/^}/d' "$GRUB_FILE"
 sed -i '/^$/N;/^\n$/D' "$GRUB_FILE"
 chmod 755 "$GRUB_FILE"
 
-echo "60"; echo "# Aktualizacja menu GRUB (to potrwa chwilę)..."
+echo "60"; echo "# Updating the GRUB menu (this will take a moment)..."
 update-grub > /dev/null 2>&1
 
-echo "100"; echo "# Wszystkie operacje zakończone!"
-) | zenity --progress --title="Usuwator GrubZilla" --text="Przygotowanie..." --auto-close --pulsate
+echo "100"; echo "# All operations completed!"
+) | zenity --progress --title="Remover GrubZilla" --text="Preparing..." --auto-close --pulsate
 
 # --- FINAŁ ---
-zenity --info --title="Sukces" \
---text="Czyszczenie zakończone pomyślnie!\n\nKopia zapasowa Twojego starego pliku:\n<b>$BACKUP_PATH</b>" --width=450
+zenity --info --title="Success" \
+--text="Cleaning complete!\n\nA backup of your old file:\n<b>$BACKUP_PATH</b>" --width=450
 
 exit 0
