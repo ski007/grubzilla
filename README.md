@@ -86,7 +86,7 @@ Additionally, during every update-grub operation, a backup copy of the 40_custom
 Because of this, GrubZilla identifies system partitions using UUID numbers instead of device names.It is possible that kernel version 6.15.x may restore stable device ordering.
 GrubZilla also provides a tool/script called: Remover GRUB
 This utility helps quickly remove all CloneZilla-related entries from the 40_custom file without uninstalling the program.
-It's also worth mentioning that GrubZilla only backs up/images the system partition identified by the bash script via terminal, so if someone has their home folder and user files on a separate partition or hard drive, they won't be included in the backup!.
+**It's also worth mentioning that GrubZilla only backs up/images the system partition identified by the bash script via terminal, so if someone has their home folder and user files on a separate partition or hard drive, they won't be included in the backup!.**
 
 **Restoring a System**
 
