@@ -153,4 +153,4 @@ If your backup drive reaches capacity, simply connect a secondary USB storage un
 
 > **FINAL BOOT REQUIREMENT**
 >
-> For Clonezilla images to execute unattended from the bootloader, your **GrubZilla USB storage drive MUST be connected before system power-on** (prior to the GRUB screen displaying).
+> For Clonezilla images to execute unattended from the bootloader, your <mark>**GrubZilla USB storage drive MUST be connected before system power-on** (prior to the GRUB screen displaying).</mark>
