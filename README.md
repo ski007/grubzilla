@@ -85,7 +85,7 @@ To add backup entries for secondary Linux installations residing on the same com
 
 ### Applying Menu Entries
 
-> **IMPORTANT:** GRUB updates must be managed strictly from your **primary OS** (the system controlling the main MBR/EFI bootloader). Updating GRUB across multiple installations simultaneously will desynchronize boot configurations.
+> **IMPORTANT:** <mark>GRUB updates must be managed strictly from your **primary OS**</mark> (the system controlling the main MBR/EFI bootloader). Updating GRUB across multiple installations simultaneously will desynchronize boot configurations.
 
 Return to your primary Linux OS, connect the USB drive, and trigger an update via:
 
