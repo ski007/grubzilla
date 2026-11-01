@@ -157,7 +157,7 @@ If one USB drive becomes full and you do not want to delete older backups:
 - Connect the USB drive with the new configuration,and 
 - Run **Verifier USB** to detect device mismatches and sync UUID configurations automatically when alternating between multiple backup drives.
 
-- If executing management scripts directly in a terminal, verify execution permissions:
+  If executing management scripts directly in a terminal, verify execution permissions:
 
   ```
   sudo chmod +x /usr/share/grubzilla/grubzilla-scripts/updater_GRUB.sh
