@@ -50,8 +50,6 @@ To add backup entries for secondary Linux installations residing on the same com
 
    - **Via Terminal:**
 
-     Bash
-
      ```
      sudo bash /media/$USER/CLONEZILLA_DATA/grubzilla-scripts/configurator_OS.sh
      ```
@@ -71,8 +69,6 @@ Return to your primary Linux OS, connect the USB drive, and trigger an update vi
 - **GRUB Updater** from the GrubZilla control panel, or
 
 - Running the updater directly in a terminal:
-
-  Bash
 
   ```
   sudo /usr/share/grubzilla/grubzilla-scripts/updater_GRUB.sh
@@ -114,8 +110,6 @@ If your backup drive reaches capacity, simply connect a secondary USB storage un
 - Run **Verifier USB** to detect device mismatches and sync UUID configurations automatically when alternating between multiple backup drives.
 
 - If executing management scripts directly in a terminal, verify execution permissions:
-
-  Bash
 
   ```
   sudo chmod +x /usr/share/grubzilla/grubzilla-scripts/updater_GRUB.sh
