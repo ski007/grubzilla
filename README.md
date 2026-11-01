@@ -96,6 +96,12 @@ Return to your primary Linux OS, connect the USB drive, and trigger an update vi
   ```
   sudo /usr/share/grubzilla/grubzilla-scripts/updater_GRUB.sh
   ```
+  After updating GRUB and rebooting the system, additional entries should appear in
+the GRUB menu. :
+
+<p align="center">
+  <img src="img/6.jpg" alt="6.jpg" width="300" />
+</p>
 
 ## 3. Windows Support (Dual-Boot Environments)
 
