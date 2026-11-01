@@ -34,8 +34,8 @@ While Clonezilla is an exceptionally reliable and powerful utility for disk imag
 3. Select the primary **GrubZilla** option from the control panel to initialize the USB drive:
 
    * Select your target drive from the list (e.g., `sdb`, `sdc`).
-
-     <p align="center">
+    
+ <p align="center">
   <img src="img/image-20261101113449050.png" alt="image-20261101113449050" width="300" />
 </p>
    
