@@ -124,13 +124,8 @@ GrubZilla integrates on-the-fly encryption utilizing modern `gocryptfs` containe
   
   
 
-<table>
-  <tr>
-    <td><img src="img/image-20261101113943585.png" alt="image-20261101113943585" width="350" /></td>
-    <td width="20"></td>
-    <td><img src="img/image-20261101114010809.png" alt="image-20261101114010809" width="270" /></td>
-  </tr>
-</table>
+<img src="img/image-20261101113943585.png" alt="image-20261101113943585" width="350" />&emsp;&emsp;<img src="img/image-20261101114010809.png" alt="image-20261101114010809" width="270" />
+
 
 
 
