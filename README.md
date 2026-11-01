@@ -1,130 +1,126 @@
-**GrubZilla** is a program that allows you to launch CloneZilla directly from the GRUB menu and create or restore Linux system backups with a single click from that menu.
+# GrubZilla – User Guide & Documentation
 
-GrubZilla is based on **CloneZilla**  - a free backup utility for HDD/SSD partitions and disks. CloneZilla is a powerful tool with many advanced options, but unfortunately it also uses a rather old-fashioned TUI (Text User Interface), which may discourage beginner users from using it.
-GrubZilla simplifies backup creation and restoration of Linux operating systems directly from the GRUB menu to a single HDD/SSD USB drive (all Ubuntu and Debian-based Linux distributions available for PC).
+**GrubZilla** integrates Clonezilla directly into your system's GRUB bootloader, enabling single-click system backup and bare-metal restore operations directly from the boot menu.
 
-**Warning!**
+While Clonezilla is an exceptionally reliable and powerful utility for disk imaging, its classic Text User Interface (TUI) can be overwhelming for everyday desktop users. GrubZilla bridges this gap by fully automating partition detection, unattended execution, and encrypted storage handling for Debian- and Ubuntu-based Linux distributions (with experimental Windows NTFS support).
 
-After connecting the USB drive, GrubZilla will format the entire USB device and create two partitions:
+---
 
-- 2 GB FAT32 partition
-- remaining space as ext4
+> **CRITICAL WARNING – DATA LOSS HAZARD**
+>
+> Initializing a drive with GrubZilla **completely formats the selected target device**, creating a dedicated two-partition layout:
+>
+> 1. **2 GB FAT32** partition (Label: `CLONEZILLA`)
+> 2. **Ext4 storage partition** utilizing remaining disk space (Label: `CLONEZILLA_DATA`)
+>
+> *System drives are safeguarded against accidental formatting, but selecting the wrong external USB drive will result in permanent data loss. Verify drive identifiers carefully before proceeding.*
 
-**How It Works**
+---
 
-After installing the .deb package, before launching the program from:
-Menu → Administration in Linux Mint (other Linux distributions may place the program in a different menu category, e.g. “System”) you must connect the USB drive first. After launching GrubZilla(menu), the program control panel will appear with several options to choose from:
+## 1. Initial Setup: Preparing the USB Storage Drive
 
-<img width="600" height="320" alt="image" src="https://github.com/user-attachments/assets/2347d5be-d9a5-4cb6-822a-c18da40a928a" />
+1. Connect your target external USB drive (HDD, SSD, or high-capacity flash drive).
 
-**First Launch  - USB Preparation**
+2. Launch **GrubZilla** from your desktop environment (`Menu -> Administration` in Linux Mint, or `System` in other distributions).
 
-When launching the first option: GrubZilla, the program will perform its main tasks:
+3. Select the primary **GrubZilla** option from the control panel to initialize the USB drive:
 
-- ​    formatting the USB drive
-- ​    configuring all files required for proper operation.
+   * Select your target drive from the list (e.g., `sdb`, `sdc`).
+   * Enter a descriptive name for your Linux system to display in the GRUB boot menu.
 
-In the displayed window you can choose the USB device: **sda**, **sdb**, **sdc** etc.
+4. After formatting finishes, download the official **Clonezilla Live ISO**.
 
-<img width="400" height="250" alt="image" src="https://github.com/user-attachments/assets/bff94244-a77a-4f05-9839-207da6610294" />
+5. Copy the downloaded ISO file to the root of the **`CLONEZILLA`** (FAT32) partition and rename it strictly to:
 
-You must also enter a name for your operating system.
+   ```text
+   /clonezilla.iso
+   ```
 
-<img width="300" height="120" alt="image" src="https://github.com/user-attachments/assets/25862e81-edb6-4a0e-9f64-465d326556a9" />
+> **Note:** If partitions fail to mount immediately after formatting, simply disconnect and reconnect the USB drive.
 
-After formatting the USB drive, copy the CloneZilla ISO image to the FAT32 partition. Partition label: CLONEZILLA. 
+GrubZilla will automatically update your local GRUB configuration and store a backup copy of your original `/etc/grub.d/40_custom` in your home directory.
 
-Download :  https://clonezilla.org/downloads.php
+## 2. Multi-Boot Environments: Configuring Additional Systems
 
-Rename the ISO file to: /clonezilla.iso
+To add backup entries for secondary Linux installations residing on the same computer:
 
-**Note:**   If one of the partitions is not visible after formatting, disconnect and reconnect the USB device. The program will update GRUB and create a backup copy of the 40_custom file in the user’s home directory.
+1. Boot into the secondary Linux distribution and connect the prepared GrubZilla USB drive.
 
-**Configuring Additional Linux Systems**
+2. Run the configuration tool:
 
-You can then switch to another Linux system installed on your computer (if available).
-On the second system: 
+   - **Via Terminal:**
 
-- connect the USB drive,
+     Bash
 
-- read and save the operating system configuration using the script: configurator_OS.sh
+     ```
+     sudo bash /media/$USER/CLONEZILLA_DATA/grubzilla-scripts/configurator_OS.sh
+     ```
 
-**Location:**
+   - **Via GUI Helper:** Launch the graphical helper script `configuratorOS-click-terminal`.
 
-USB ext4 partition:  `CLONEZILLA_DATA/grubzilla-scripts` 
+3. Specify a menu label for this OS. The script generates a configuration fragment on the FAT32 partition (`/system_name_id_grub_menu.txt`).
 
-or installed system path: `/usr/share/grubzilla/grubzilla-scripts` 
+4. Repeat this procedure for each installed Linux system.
 
-You can also use the script:  `configuratorOS-click-terminal`
+### Applying Menu Entries
 
-Assign a name for the operating system that should appear in the GRUB menu.
-If you have multiple Linux systems installed, repeat these steps on each system.
-All configurations will be saved as text files on: 
-USB-HDD/SSD (FAT32):  `/system_name_id_grub_menu.txt`
+> **IMPORTANT:** GRUB updates must be managed strictly from your **primary OS** (the system controlling the main MBR/EFI bootloader). Updating GRUB across multiple installations simultaneously will desynchronize boot configurations.
 
-   To save all Linux system configurations into the GRUB menu, return to the main operating system where the update-grub command is managed.
+Return to your primary Linux OS, connect the USB drive, and trigger an update via:
 
-**IMPORTANT!**
+- **GRUB Updater** from the GrubZilla control panel, or
 
-GRUB menu management should only be performed from one operating system. Otherwise, the GRUB configuration may become disorganized.
-Connect the USB drive and choose:
+- Running the updater directly in a terminal:
 
-- GRUB Updater
-- or use the submenu in GrubZilla(menu)
-- or run the script: updater_GRUB.sh
+  Bash
 
-After updating GRUB and rebooting the system, additional entries should appear in the GRUB menu. :
+  ```
+  sudo /usr/share/grubzilla/grubzilla-scripts/updater_GRUB.sh
+  ```
 
-<img width="600" height="400" alt="image" src="https://github.com/user-attachments/assets/2e930179-7b64-4cd3-a080-ded0d0caf859" />
+## 3. Windows Support (Dual-Boot Environments)
 
-**Important!** 
+GrubZilla automatically detects existing Windows NTFS installations (verifying partition structure and `System32` presence) and generates corresponding automated backup and restore menu entries.
 
-Formatting the currently used system partition is blocked for safety reasons.
-However, GrubZilla cannot prevent accidental formatting of another USB drive if the user 
-selects the wrong device. Be very careful when choosing the disk to format.
-Additionally, during every update-grub operation, a backup copy of the 40_custom GRUB configuration file is automatically created in the user’s home directory.Since Linux kernel version 5.3, block devices are detected in a non-deterministic (almost random) order.
-Because of this, GrubZilla identifies system partitions using UUID numbers instead of device names.It is possible that kernel version 6.15.x may restore stable device ordering.
-GrubZilla also provides a tool/script called: Remover GRUB
-This utility helps quickly remove all CloneZilla-related entries from the 40_custom file without uninstalling the program.
-**It's also worth mentioning that GrubZilla only backs up/images the system partition identified by the bash script via terminal, so if someone has their home folder and user files on a separate partition or hard drive, they won't be included in the backup!.**
+- **Requirement:** The Windows system volume must **not** be encrypted with BitLocker or suspended in Windows Fast Startup / Hibernation mode.
 
-**Restoring a System**
+## 4. Hardware Safety & Partition Boundaries
 
-During system restoration, the latest backup image stored on the USB drive is selected automatically. If you want to restore a different backup version, choose: Clonezilla - Standard TUI from the GRUB menu and manually select another image in CloneZilla.
+- **UUID Partition Binding:** Modern Linux kernels identify block devices non-deterministically during boot. To prevent destructive misalignments across varying drive layouts, GrubZilla binds partition operations strictly to unique **filesystem UUIDs** rather than static device identifiers like `/dev/sda` or `/dev/nvme0n1`.
+- **System Scope:** GrubZilla images **only the system root partition (`/`)**. If your installation utilizes dedicated, isolated partitions or secondary drives for `/home` or personal data containers, they are **excluded** from the automated system image.
 
-**Backup Selection Feature**
+## 5. Restoration & Image Version Management
 
-To simplify backup management, GrubZilla includes the menu option: Backup Selection
-This allows you to manually select a specific backup image.After confirmation and GRUB update, the selected backup will appear as an additional GRUB menu entry. :
+- **Default Restore Behavior:** Selecting a Restore entry from GRUB automatically rolls back your system using the **most recent** image archive located on the USB storage drive.
+- **Selecting Specific Archives:** To restore an earlier point-in-time image, use the **Backup Selection** tool within the GrubZilla utility suite. This generates a dedicated GRUB entry for that specific archive.
+- **Manual Override:** Selecting `CloneZilla - Standard TUI (EN)` from the boot menu drops into Clonezilla's native interface for unrestricted manual operations.
 
-<img width="350" height="250" alt="image" src="https://github.com/user-attachments/assets/5a375c6e-e2ec-4da9-8238-2966d11297d9" />
+## 6. Backup Encryption (gocryptfs)
 
-**Using Multiple USB Backup Drives**
+GrubZilla integrates on-the-fly encryption utilizing modern `gocryptfs` containers within Clonezilla:
 
-GrubZilla also supports easy usage of multiple USB HDD/SSD backup drives.
+- **Safe Mode (Manual):** Encrypts the backup while requiring manual password entry directly in the Clonezilla terminal during backup and restore phases. This setting **persists permanently** across reboots until manually disabled in GrubZilla settings.
 
-**How It Works**
+- **Full Auto Mode (Unattended):** Configured by specifying an encryption password beforehand inside the GrubZilla interface. Enables completely silent, unattended execution without user intervention at boot.
 
-If one USB drive becomes full and you do not want to delete older backups:
+  *Security Precaution:* The temporary configuration containing the active passphrase is **permanently destroyed via `shred`** immediately upon completion of the imaging run.
 
-1. ​    use another USB drive,
-2. ​    repeat all steps from this tutorial,
-3. ​    first remove the old GRUB configuration using: Remover Grub
+## 7. Storage Maintenance & Multi-Drive Management
 
-Then use the menu option: Verifier USB. The script checks whether the connected USB drive matches the UUID configuration stored in 40_custom. If everything matches → no action is taken. If not → the script offers to update the GRUB configuration automatically.
-An option has also been added to detect Windows, provided it is not additionally encrypted with BitLocker, and to add a backup and restore option for this system to the GRUB menu.
+If your backup drive reaches capacity, simply connect a secondary USB storage unit:
 
-**Script Permissions**
+- Run **Remover GRUB** to prune old entries from the local boot configuration without uninstalling core packages.
 
-If you run scripts manually in the terminal, make sure they have executable permissions:  
+- Run **Verifier USB** to detect device mismatches and sync UUID configurations automatically when alternating between multiple backup drives.
 
-`sudo chmod +x /path_to_script/aktualizator_GRUB.sh`
+- If executing management scripts directly in a terminal, verify execution permissions:
 
-​                                                                                                        **FINAL WARNING**
+  Bash
 
-**To correctly create or restore a backup image using CloneZilla from the GRUB menu: The USB drive must be connected BEFORE the GRUB menu appears during computer startup.**
+  ```
+  sudo chmod +x /usr/share/grubzilla/grubzilla-scripts/updater_GRUB.sh
+  ```
 
-
-
-
-
+> **FINAL BOOT REQUIREMENT**
+>
+> For Clonezilla images to execute unattended from the bootloader, your **GrubZilla USB storage drive MUST be connected before system power-on** (prior to the GRUB screen displaying).
