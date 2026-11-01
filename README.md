@@ -149,10 +149,12 @@ GrubZilla integrates on-the-fly encryption utilizing modern `gocryptfs` containe
 
 ## 7. Storage Maintenance & Multi-Drive Management
 
-If your backup drive reaches capacity, simply connect a secondary USB storage unit:
+If one USB drive becomes full and you do not want to delete older backups:
 
 - Run **Remover GRUB** to prune old entries from the local boot configuration without uninstalling core packages.
-
+- Use another USB drive,
+- Repeat all steps from this tutorial,
+- Connect the USB drive with the new configuration,and 
 - Run **Verifier USB** to detect device mismatches and sync UUID configurations automatically when alternating between multiple backup drives.
 
 - If executing management scripts directly in a terminal, verify execution permissions:
