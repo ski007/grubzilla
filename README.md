@@ -100,7 +100,7 @@ Return to your primary Linux OS, connect the USB drive, and trigger an update vi
 the GRUB menu. :
 
 <p align="center">
-  <img src="img/6.jpg" alt="6.jpg" width="300" />
+  <img src="img/6.jpg" alt="6.jpg" width="600" />
 </p>
 
 ## 3. Windows Support (Dual-Boot Environments)
