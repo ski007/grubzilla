@@ -1,4 +1,6 @@
-# GrubZilla – User Guide & Documentation
+#                  GrubZilla – User Guide & Documentation
+
+
 
 **GrubZilla** integrates Clonezilla directly into your system's GRUB bootloader, enabling single-click system backup and bare-metal restore operations directly from the boot menu.
 
@@ -23,12 +25,29 @@ While Clonezilla is an exceptionally reliable and powerful utility for disk imag
 
 2. Launch **GrubZilla** from your desktop environment (`Menu -> Administration` in Linux Mint, or `System` in other distributions).
 
+   
+
+   <img src="img/image-20261101113151309.png" alt="image-20261101113151309" style="zoom:80%;" />
+
+   
+
 3. Select the primary **GrubZilla** option from the control panel to initialize the USB drive:
 
    * Select your target drive from the list (e.g., `sdb`, `sdc`).
+
+     
+
+     <img src="/home/kris/.config/Typora/typora-user-images/image-20261101113449050.png" alt="image-20261101113449050" style="zoom:80%;" />
+
    * Enter a descriptive name for your Linux system to display in the GRUB boot menu.
 
-4. After formatting finishes, download the official **Clonezilla Live ISO**.
+     
+
+     ![image-20261101113522646](/home/kris/.config/Typora/typora-user-images/image-20261101113522646.png)
+
+     
+
+4. After formatting finishes, download the official **[Clonezilla Live ISO](https://clonezilla.org/downloads.php)**.
 
 5. Copy the downloaded ISO file to the root of the **`CLONEZILLA`** (FAT32) partition and rename it strictly to:
 
@@ -95,11 +114,19 @@ GrubZilla automatically detects existing Windows NTFS installations (verifying p
 
 GrubZilla integrates on-the-fly encryption utilizing modern `gocryptfs` containers within Clonezilla:
 
+<img src="/home/kris/.config/Typora/typora-user-images/image-20261101113901337.png" alt="image-20261101113901337" style="zoom:80%;" />
+
 - **Safe Mode (Manual):** Encrypts the backup while requiring manual password entry directly in the Clonezilla terminal during backup and restore phases. This setting **persists permanently** across reboots until manually disabled in GrubZilla settings.
 
 - **Full Auto Mode (Unattended):** Configured by specifying an encryption password beforehand inside the GrubZilla interface. Enables completely silent, unattended execution without user intervention at boot.
 
   *Security Precaution:* The temporary configuration containing the active passphrase is **permanently destroyed via `shred`** immediately upon completion of the imaging run.
+  
+  
+
+<img src="/home/kris/.config/Typora/typora-user-images/image-20261101113943585.png" alt="image-20261101113943585" style="zoom: 80%;" /><img src="/home/kris/.config/Typora/typora-user-images/image-20261101114010809.png" alt="image-20261101114010809" style="zoom: 67%;" />
+
+
 
 ## 7. Storage Maintenance & Multi-Drive Management
 
