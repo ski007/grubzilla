@@ -1,4 +1,4 @@
-#                  GrubZilla – User Guide & Documentation
+<h1 align="center">GrubZilla – User Guide & Documentation</h1>
 
 
 
