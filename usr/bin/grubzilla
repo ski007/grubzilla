@@ -111,17 +111,103 @@ CLONE_L_R="restore_${OS_NAME}_${SUFFIX}.sh"
 
 cat <<EOF > "$MOUNT_DIR/$CLONE_L_B"
 #!/bin/bash
+# 1. Montowanie bazy i pobieranie urządzenia po UUID
 sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
-SYS_DEV=\$(blkid -U $SYS_UUID)
-/usr/sbin/ocs-sr -nogui -q2 -j2 -z9p -i 0 -sfsck -p poweroff saveparts "${OS_NAME}_${SUFFIX}-\$(date +%F-%H%M)" "\$SYS_DEV"
+DEV_PATH=\$(blkid -U $SYS_UUID)
+SYS_DEV=\$(basename "\$DEV_PATH")
+
+if [ -z "\$SYS_DEV" ]; then
+    echo "BŁĄD: Nie znaleziono partycji o UUID: $SYS_UUID"
+    exit 1
+fi
+
+# 2. Dynamiczne sprawdzanie szyfrowania w locie (gocryptfs)
+ENC_ARGS=()
+CONF="/home/partimag/.grubzilla_enc.conf"
+
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$STATUS" = "enabled" ]; then
+        if [ "\$MODE" = "auto" ] && [ -n "\$PASS" ]; then
+            ENC_ARGS=("-goc" "-pg" "\$PASS")
+        else
+            ENC_ARGS=("-goc")
+        fi
+    fi
+fi
+
+# 3. Wywołanie Clonezilli
+/usr/sbin/ocs-sr -nogui -q2 -j2 -z9p -i 0 -sfsck "\${ENC_ARGS[@]}" -p poweroff saveparts "${OS_NAME}_${SUFFIX}-\$(date +%F-%H%M)" "\$SYS_DEV"
+EXIT_CODE=\$?
+
+# 4. Bezpieczne sprzątanie
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$MODE" = "auto" ]; then
+        # Zamazujemy zawartość pliku bez natychmiastowej zmiany nazwy przez shred
+        shred -z -n 1 "\$CONF" 2>/dev/null
+        # Tradycyjne, pewne usunięcie pliku z systemu plików
+        rm -f "\$CONF"
+        # Usunięcie ewentualnych śmieci po wcześniejszych przebiegach shreda
+        rm -f /home/partimag/0* 2>/dev/null
+        # Wymuszenie zapisu na nośnik przed zgaszeniem zasilania
+        sync
+    fi
+fi
+
+exit \$EXIT_CODE
 EOF
 
 cat <<EOF > "$MOUNT_DIR/$CLONE_L_R"
 #!/bin/bash
+# 1. Montowanie bazy i pobieranie urządzenia po UUID
 sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
 LATEST=\$(ls -td /home/partimag/${OS_NAME}_${SUFFIX}-* 2>/dev/null | head -n1 | xargs -n1 basename)
-SYS_DEV=\$(blkid -U $SYS_UUID)
-[ -n "\$LATEST" ] && /usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST" "\$SYS_DEV"
+DEV_PATH=\$(blkid -U $SYS_UUID)
+SYS_DEV=\$(basename "\$DEV_PATH")
+
+if [ -z "\$LATEST" ] || [ -z "\$SYS_DEV" ]; then
+    echo "BŁĄD: Brak obrazu do przywrócenia lub nie znaleziono dysku!"
+    exit 1
+fi
+
+# 2. Obsługa deszyfrowania przy restore (jeśli obraz zawiera gocryptfs.conf)
+ENC_ARGS=()
+CONF="/home/partimag/.grubzilla_enc.conf"
+
+if [ -f "/home/partimag/\$LATEST/gocryptfs.conf" ]; then
+    if [ -f "\$CONF" ]; then
+        source "\$CONF"
+        if [ "\$STATUS" = "enabled" ] && [ -n "\$PASS" ]; then
+            ENC_ARGS=("-goc" "-pg" "\$PASS")
+        else
+            ENC_ARGS=("-goc")
+        fi
+    else
+        ENC_ARGS=("-goc")
+    fi
+fi
+
+# 3. Wywołanie przywracania
+/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr "\${ENC_ARGS[@]}" -p poweroff restoreparts "\$LATEST" "\$SYS_DEV"
+EXIT_CODE=\$?
+
+# 4. Bezpieczne sprzątanie
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$MODE" = "auto" ]; then
+        # Zamazujemy zawartość pliku bez natychmiastowej zmiany nazwy przez shred
+        shred -z -n 1 "\$CONF" 2>/dev/null
+        # Tradycyjne, pewne usunięcie pliku z systemu plików
+        rm -f "\$CONF"
+        # Usunięcie ewentualnych śmieci po wcześniejszych przebiegach shreda
+        rm -f /home/partimag/0* 2>/dev/null
+        # Wymuszenie zapisu na nośnik przed zgaszeniem zasilania
+        sync
+    fi
+fi
+
+exit \$EXIT_CODE
 EOF
 
 # 3. Skrypty Windows (opcjonalnie)
@@ -129,16 +215,96 @@ if [ -n "$WIN_UUID" ]; then
     cat <<EOF > "$MOUNT_DIR/win_backup.sh"
 #!/bin/bash
 sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
-W_DEV=\$(blkid -U $WIN_UUID)
-/usr/sbin/ocs-sr -nogui -q2 -j2 -z1p -i 0 -sfsck -p poweroff saveparts "Windows_Backup-\$(date +%F-%H%M)" "\$W_DEV"
+DEV_PATH=\$(blkid -U $WIN_UUID)
+W_DEV=\$(basename "\$DEV_PATH")
+
+if [ -z "\$W_DEV" ]; then
+    echo "BŁĄD: Nie znaleziono partycji Windows o UUID: $WIN_UUID"
+    exit 1
+fi
+
+ENC_ARGS=()
+CONF="/home/partimag/.grubzilla_enc.conf"
+
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$STATUS" = "enabled" ]; then
+        if [ "\$MODE" = "auto" ] && [ -n "\$PASS" ]; then
+            ENC_ARGS=("-goc" "-pg" "\$PASS")
+        else
+            ENC_ARGS=("-goc")
+        fi
+    fi
+fi
+
+/usr/sbin/ocs-sr -nogui -q2 -j2 -z1p -i 0 -sfsck "\${ENC_ARGS[@]}" -p poweroff saveparts "Windows_Backup-\$(date +%F-%H%M)" "\$W_DEV"
+EXIT_CODE=\$?
+
+# 4. Bezpieczne sprzątanie
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$MODE" = "auto" ]; then
+        # Zamazujemy zawartość pliku bez natychmiastowej zmiany nazwy przez shred
+        shred -z -n 1 "\$CONF" 2>/dev/null
+        # Tradycyjne, pewne usunięcie pliku z systemu plików
+        rm -f "\$CONF"
+        # Usunięcie ewentualnych śmieci po wcześniejszych przebiegach shreda
+        rm -f /home/partimag/0* 2>/dev/null
+        # Wymuszenie zapisu na nośnik przed zgaszeniem zasilania
+        sync
+    fi
+fi
+
+exit \$EXIT_CODE
 EOF
 
     cat <<EOF > "$MOUNT_DIR/win_restore.sh"
 #!/bin/bash
 sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
 LATEST_W=\$(ls -td /home/partimag/Windows_Backup-* 2>/dev/null | head -n1 | xargs -n1 basename)
-W_DEV=\$(blkid -U $WIN_UUID)
-[ -n "\$LATEST_W" ] && /usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST_W" "\$W_DEV"
+DEV_PATH=\$(blkid -U $WIN_UUID)
+W_DEV=\$(basename "\$DEV_PATH")
+
+if [ -z "\$LATEST_W" ] || [ -z "\$W_DEV" ]; then
+    echo "BŁĄD: Brak obrazu Windows do przywrócenia lub nie znaleziono dysku!"
+    exit 1
+fi
+
+ENC_ARGS=()
+CONF="/home/partimag/.grubzilla_enc.conf"
+
+if [ -f "/home/partimag/\$LATEST_W/gocryptfs.conf" ]; then
+    if [ -f "\$CONF" ]; then
+        source "\$CONF"
+        if [ "\$STATUS" = "enabled" ] && [ -n "\$PASS" ]; then
+            ENC_ARGS=("-goc" "-pg" "\$PASS")
+        else
+            ENC_ARGS=("-goc")
+        fi
+    else
+        ENC_ARGS=("-goc")
+    fi
+fi
+
+/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr "\${ENC_ARGS[@]}" -p poweroff restoreparts "\$LATEST_W" "\$W_DEV"
+EXIT_CODE=\$?
+
+# 4. Bezpieczne sprzątanie
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$MODE" = "auto" ]; then
+        # Zamazujemy zawartość pliku bez natychmiastowej zmiany nazwy przez shred
+        shred -z -n 1 "\$CONF" 2>/dev/null
+        # Tradycyjne, pewne usunięcie pliku z systemu plików
+        rm -f "\$CONF"
+        # Usunięcie ewentualnych śmieci po wcześniejszych przebiegach shreda
+        rm -f /home/partimag/0* 2>/dev/null
+        # Wymuszenie zapisu na nośnik przed zgaszeniem zasilania
+        sync
+    fi
+fi
+
+exit \$EXIT_CODE
 EOF
 fi
 

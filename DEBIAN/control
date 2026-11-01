@@ -1,5 +1,5 @@
 Package: grubzilla
-Version: 1.1-1
+Version: 1.1-2
 Section: utils
 Priority: optional
 Architecture: all
@@ -12,6 +12,6 @@ Description: Automatic Linux system backup using CloneZilla from the GRUB menu.
  named /clonezilla.iso on the USB drive.
  .
  Autorzy:
-  - ski777000 (ski777000@gmail.com) - idea, testing, development
-  - Gemini/ChatGPT - coding support
+  - ski007 (ski777000@gmail.com) - idea, testing, development
+  - Gemini - coding support
 

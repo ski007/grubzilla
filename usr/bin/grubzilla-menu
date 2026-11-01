@@ -7,51 +7,55 @@
 MAIN_ICON="/usr/share/icons/hicolor/64x64/apps/grubzilla.png"
 [ ! -f "$MAIN_ICON" ] && MAIN_ICON="system-run"
 
-# 2. Definicja ikon dla wierszy (Pełne ścieżki są najpewniejsze)
-# Jeśli masz własne ikony w tym folderze, YAD je teraz łyknie bez problemu
-# 2. Definicja ikon dla wierszy (Podajemy PEŁNE ścieżki do plików PNG)
-# 2. Definicja ikon dla wierszy (Podajemy TYLKO PEŁNE ścieżki)
+# 2. Definicja ikon dla wierszy
 PATH_ICO="/usr/share/icons/hicolor/64x64/apps"
 
 ICO_MAIN="$PATH_ICO/grubzilla.png"
 ICO_REFRESH="$PATH_ICO/updater.png"
 ICO_CLEAR="$PATH_ICO/remover.png"
 ICO_SEARCH="$PATH_ICO/verifier.png"
-ICO_HELP="$PATH_ICO/help.png"
 ICO_PICK="$PATH_ICO/backup-selection.png"
+ICO_CRYPT="$PATH_ICO/security-high.png"
+ICO_HELP="$PATH_ICO/help.png"
 
-# Sprawdzenie, czy główny plik istnieje, jeśli nie - dajemy zamiennik
 [ ! -f "$ICO_MAIN" ] && ICO_MAIN="system-run"
 [ ! -f "$ICO_REFRESH" ] && ICO_REFRESH="view-refresh"
 [ ! -f "$ICO_CLEAR" ] && ICO_CLEAR="edit-clear"
 [ ! -f "$ICO_SEARCH" ] && ICO_SEARCH="zoom-search"
+[ ! -f "$ICO_PICK" ] && ICO_PICK="backup-selection"
+[ ! -f "$ICO_CRYPT" ] && ICO_CRYPT="security-high"
 [ ! -f "$ICO_HELP" ] && ICO_HELP="help-browser"
 
+# 3. Zbudowanie elementów listy w bezpiecznej tablicy
+ELEMENTS=(
+    "$ICO_MAIN" "<span size='large' weight='bold'>GrubZilla</span>" "<span size='medium'>Format USB / Name the system / Update GRUB, etc.</span>"
+    "$ICO_REFRESH" "<span size='large' weight='bold'>Updater GRUB</span>" "<span size='medium'>Add configurations for all OS/Linux systems from USB to GRUB</span>"
+    "$ICO_CLEAR" "<span size='large' weight='bold'>Remover GRUB</span>" "<span size='medium'>Delete all entries from the GRUB menu (prog. GrubZilla)</span>"
+    "$ICO_SEARCH" "<span size='large' weight='bold'>Verifier USB</span>" "<span size='medium'>Verify that the USB drive is compatible (UUID) with the GRUB configuration</span>"
+    "$ICO_PICK" "<span size='large' weight='bold'>Backup selection</span>" "<span size='medium'>Select a specific image from the USB drive and add an entry to the GRUB menu</span>"
+    "$ICO_CRYPT" "<span size='large' weight='bold'>Encryption</span>" "<span size='medium'>Enable/Disable encryption and set automated password</span>"
+    "$ICO_HELP" "<span size='large' weight='bold'>User manual</span>" "<span size='medium'>Open documentation in your browser (PDF)</span>"
+)
 
-
-# 3. Wyświetlanie listy
+# 4. Wyświetlanie listy
 WYBOR=$(yad --list --title="GrubZilla - Control Panel" \
     --window-icon="$MAIN_ICON" \
-    --width=1100 --height=550 --center --fixed \
+    --width=1150 --height=620 --center --fixed \
     --image-column=1 \
     --text="<span size='x-large' weight='bold' color='#2e7d32'>Welcome to GrubZilla!</span>\n<span size='large'>Select a task to complete:</span>" \
     --text-align=center \
     --column="":IMG --column="Task":TEXT --column="Description":TEXT \
-    "$ICO_MAIN" "<span size='large' weight='bold'>GrubZilla</span>" "<span size='medium'>Format USB / Name the system / Update GRUB, etc.</span>" \
-    "$ICO_REFRESH" "<span size='large' weight='bold'>Updater GRUB</span>" "<span size='medium'>Add configurations for all OS/Linux systems from USB to GRUB</span>" \
-    "$ICO_CLEAR" "<span size='large' weight='bold'>Remover GRUB</span>" "<span size='medium'>Delete all entries from the GRUB menu (prog. GrubZilla)</span>" \
-    "$ICO_SEARCH" "<span size='large' weight='bold'>Verifier USB</span>" "<span size='medium'>Verify that the USB drive is compatible (UUID) with the GRUB configuration</span>" \
-    "$ICO_PICK" "<span size='large' weight='bold'>Backup selection</span>" "Select a specific image from the USB drive and add an entry to the GRUB menu" \
-    "$ICO_HELP" "<span size='large' weight='bold'>User manual</span>" "<span size='medium'>Open documentation in your browser (PDF)</span>" \
-    --print-column=2 --no-headers --separator="" --ellipsize=NONE --expand-column=3)
+    --print-column=2 --no-headers --separator="" --ellipsize=NONE --expand-column=3 \
+    "${ELEMENTS[@]}")
 
-# 4. Obsługa wyboru
+# 5. Obsługa wyboru
 case "$WYBOR" in
     *"GrubZilla"*) /usr/bin/grubzilla ;;
     *"Updater GRUB"*) /usr/bin/updater-GRUB ;;
     *"Remover GRUB"*) /usr/bin/remover-GRUB ;;
     *"Verifier USB"*) /usr/bin/verifier-usb ;;
     *"Backup selection"*) /usr/bin/grubzilla-select ;;
+    *"Encryption"*) /usr/bin/grubzilla-crypt ;;
     *"User manual"*) xdg-open /usr/share/doc/grubzilla/grubzilla.pdf ;;
     *) exit 0 ;;
 esac

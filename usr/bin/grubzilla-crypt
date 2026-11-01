@@ -1,0 +1,145 @@
+#!/bin/bash
+# =================================================================
+# GrubZilla - Encryption & Password Manager (v1.1-1)
+# =================================================================
+
+if [[ $EUID -ne 0 ]]; then
+    pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$0" "$@"
+    exit $?
+fi
+
+MOUNT_DATA="/mnt/grubzilla_data_crypt_tmp"
+
+# 1. Wykrywanie partycji CLONEZILLA_DATA
+USB_DATA_PART=$(blkid -L "CLONEZILLA_DATA")
+
+if [ -z "$USB_DATA_PART" ]; then
+    zenity --error --title="GrubZilla - Encryption" \
+        --text="❌ The GrubZilla USB drive (CLONEZILLA_DATA) was not found.\nPlease plug it in and try again."
+    exit 1
+fi
+
+mkdir -p "$MOUNT_DATA"
+mount "$USB_DATA_PART" "$MOUNT_DATA"
+
+CONF_FILE="$MOUNT_DATA/.grubzilla_enc.conf"
+
+cleanup() {
+    umount "$MOUNT_DATA" 2>/dev/null
+    rmdir "$MOUNT_DATA" 2>/dev/null
+}
+
+# 2. Sprawdzenie bieżącego statusu
+CURRENT_STATUS="disabled"
+CURRENT_MODE="ask"
+CURRENT_PASS=""
+
+if [ -f "$CONF_FILE" ]; then
+    source "$CONF_FILE"
+    CURRENT_STATUS="$STATUS"
+    CURRENT_MODE="$MODE"
+    CURRENT_PASS="$PASS"
+fi
+
+# 3. Logika menu w zależności od stanu
+if [ "$CURRENT_STATUS" = "enabled" ]; then
+    # Szyfrowanie jest WŁĄCZONE - dajemy opcje zarządzania
+    ACTION=$(zenity --list --radiolist \
+        --title="GrubZilla - Encryption Management" \
+        --text="<b>Encryption is currently: <span color='green'>ENABLED</span></b>\nCurrent mode: <b>$CURRENT_MODE</b>\n\nChoose an action:" \
+        --column="Select" --column="Action" --column="Description" \
+        TRUE "1" "Disable encryption completely" \
+        FALSE "2" "Change password / Switch to Full Auto mode" \
+        FALSE "3" "Switch to Safe mode (Manual passphrase entry in terminal)" \
+        --width=780 --height=320 --hide-column=2)
+
+    case "$ACTION" in
+        "1")
+            rm -f "$CONF_FILE"
+            # Usuwamy -enc i -penc ze skryptów backupu na USB
+            sed -i 's/ -enc//g' "$MOUNT_DATA"/*.sh 2>/dev/null
+            sed -i 's/ -penc "[^"]*"//g' "$MOUNT_DATA"/*.sh 2>/dev/null
+            cleanup
+            zenity --info --title="GrubZilla" --text="✅ Encryption has been disabled.\nSubsequent backups will be unencrypted."
+            exit 0
+            ;;
+        "2")
+            NEW_PASS=$(zenity --password --title="GrubZilla - Password" \
+                --text="Enter password for automated backups:")
+            [ -z "$NEW_PASS" ] && { cleanup; exit 0; }
+            
+            echo "STATUS=\"enabled\"" > "$CONF_FILE"
+            echo "MODE=\"auto\"" >> "$CONF_FILE"
+            echo "PASS=\"$NEW_PASS\"" >> "$CONF_FILE"
+            chmod 600 "$CONF_FILE"
+
+            cleanup
+            zenity --info --title="GrubZilla" --text="✅ Automatic mode configured with new password."
+            exit 0
+            ;;
+        "3")
+            echo "STATUS=\"enabled\"" > "$CONF_FILE"
+            echo "MODE=\"ask\"" >> "$CONF_FILE"
+            echo "PASS=\"\"" >> "$CONF_FILE"
+            chmod 600 "$CONF_FILE"
+
+            cleanup
+            zenity --info --title="GrubZilla" --text="✅ Safe mode enabled.\nClonezilla will prompt for passphrase in console."
+            exit 0
+            ;;
+        *)
+            cleanup
+            exit 0
+            ;;
+    esac
+
+else
+    # Szyfrowanie jest WYŁĄCZONE - pytamy czy włączyć
+    zenity --question --title="GrubZilla - Encryption" \
+        --text="<b>Image encryption is currently: <span color='red'>DISABLED</span></b>\n\nDo you want to enable encryption for future backups?" \
+        --width=600
+    
+    if [ $? -ne 0 ]; then
+        cleanup
+        exit 0
+    fi
+
+    # Wybór trybu
+    SEL_MODE=$(zenity --list --radiolist \
+        --title="GrubZilla - Select Encryption Mode" \
+        --text="Select how the password should be handled:" \
+        --column="Select" --column="ID" --column="Mode" --column="Description" \
+        TRUE "auto" "Full Auto" "Password stored on USB (seamless backup/restore)" \
+        FALSE "ask" "Safe / Manual" "Clonezilla asks for password in terminal" \
+        --width=780 --height=280 --hide-column=2)
+
+    [ -z "$SEL_MODE" ] && { cleanup; exit 0; }
+
+    if [ "$SEL_MODE" = "auto" ]; then
+        PASS_1=$(zenity --password --title="GrubZilla - Enter Password")
+        [ -z "$PASS_1" ] && { cleanup; exit 0; }
+        
+        PASS_2=$(zenity --password --title="GrubZilla - Confirm Password")
+        if [ "$PASS_1" != "$PASS_2" ]; then
+            zenity --error --title="Error" --text="Passwords do not match!"
+            cleanup
+            exit 1
+        fi
+
+        echo "STATUS=\"enabled\"" > "$CONF_FILE"
+        echo "MODE=\"auto\"" >> "$CONF_FILE"
+        echo "PASS=\"$PASS_1\"" >> "$CONF_FILE"
+        chmod 600 "$CONF_FILE"
+        cleanup
+        zenity --info --title="GrubZilla" --text="✅ Encryption ENABLED in Full Auto mode."
+    else
+        echo "STATUS=\"enabled\"" > "$CONF_FILE"
+        echo "MODE=\"ask\"" >> "$CONF_FILE"
+        echo "PASS=\"\"" >> "$CONF_FILE"
+        chmod 600 "$CONF_FILE"
+        cleanup
+        zenity --info --title="GrubZilla" --text="✅ Encryption ENABLED in Safe mode (Prompt on screen)."
+    fi
+fi
+
+exit 0

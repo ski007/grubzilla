@@ -67,9 +67,23 @@ if [ -z "$TARGET_UUID" ]; then
 fi
 
 # KONIEC SEKCHJI 4 - NIE DODAWAJ NIC WIĘCEJ O LINUX/WINDOWS!
-
-# --- 5. Przygotowanie skryptu na USB (Z naprawionym przekazywaniem UUID) ---
+# --- 5. Przygotowanie skryptu na USB (Obsługa szyfrowania i UUID) ---
 UUID_DATA=$(lsblk -no UUID $(blkid -L "CLONEZILLA_DATA"))
+
+# Sprawdzamy, czy obraz zawiera zaszyfrowane pliki (np. *.enc, *.ecryptfs)
+IS_ENCRYPTED=$(find "$MOUNT_DATA/$WYBRANY" -type f \( -name "*.enc" -o -name "*.ecryptfs" \) | head -n1)
+
+RESTORE_ENC_FLAG=""
+CONF_FILE="$MOUNT_DATA/.grubzilla_enc.conf"
+
+if [ -n "$IS_ENCRYPTED" ]; then
+    if [ -f "$CONF_FILE" ]; then
+        source "$CONF_FILE"
+        if [ "$STATUS" = "enabled" ] && [ "$MODE" = "auto" ] && [ -n "$PASS" ]; then
+            RESTORE_ENC_FLAG="-penc \"$PASS\""
+        fi
+    fi
+fi
 
 cat <<EOF > "$MOUNT_DATA/custom_restore_run.sh"
 #!/bin/bash
@@ -79,17 +93,20 @@ sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
 # 2. Szukanie partycji docelowej PO UUID
 TARGET_DEV=\$(blkid -U $TARGET_UUID)
 
-# 3. Jeśli blkid zawiedzie, używamy findfs 
+# 3. Zapasowe szukanie przez findfs
 if [ -z "\$TARGET_DEV" ]; then
     TARGET_DEV=\$(findfs UUID=$TARGET_UUID)
 fi
 
-# 4. Wywołanie Clonezilli z parametrami
-# Teraz \$TARGET_DEV nie będzie puste, bo Clonezilla znajdzie je w locie
-/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "$WYBRANY" "\$TARGET_DEV"
+# 4. Przywracanie obrazu
+/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr $RESTORE_ENC_FLAG -p poweroff restoreparts "$WYBRANY" "\$TARGET_DEV"
+
+# 5. Zacieranie śladów (usuwanie hasła z nośnika po zakończeniu pracy)
+shred -u -z -n 1 "\$0" 2>/dev/null || rm -f "\$0"
 EOF
 
 chmod +x "$MOUNT_DATA/custom_restore_run.sh"
+
 
 # --- 6. Aktualizacja GRUB ---
 # Pobieramy UUID dla partycji ISO (CLONEZILLA)

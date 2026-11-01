@@ -4,6 +4,8 @@ set -e
 # 1. Poprawiamy uprawnienia zbiorczo dla pewności (opcjonalne, ale dobre)
 chmod 644 /usr/share/applications/grubzilla*.desktop || true
 chmod 644 /usr/share/pixmaps/grubzilla.png || true
+chmod 644 /usr/share/pixmaps/security-high.png || true
+chmod 644 /usr/share/icons/hicolor/64x64/apps/security-high.png || true
 
 # 2. Odświeżamy bazę skrótów menu (bardzo ważne dla widoczności ikonki)
 if command -v update-desktop-database >/dev/null 2>&1; then

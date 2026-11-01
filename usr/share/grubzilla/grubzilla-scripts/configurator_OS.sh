@@ -5,18 +5,13 @@
 
 # --- AUTOMATYCZNE PODNOSZENIE UPRAWNIEŃ (GRAFICZNIE) ---
 if [[ $EUID -ne 0 ]]; then
-    # Próba uruchomienia przez pkexec (standard GUI)
     pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$0" "$@"
-    
-    # Jeśli pkexec nie zadziałało lub użytkownik anulował, kończymy bez błędów w tle
     exit $?
 fi
 
 # --- OD TEGO MOMENTU JESTEŚMY ROOTEM ---
 
-# Sprawdzanie czy Zenity jest w systemie (na wszelki wypadek)
 if ! command -v zenity >/dev/null; then
-    # Jeśli nie ma zenity, musimy użyć terminala jako ratunku
     echo "Error: 'zenity' is not installed. Please install it: sudo apt install zenity"
     read -p "Press Enter to close..."
     exit 1
@@ -24,7 +19,6 @@ fi
 
 # --- Automatyczne wykrywanie pendrive'a GrubZilla ---
 USB_DATA_PART=$(blkid -L "CLONEZILLA_DATA")
-# findmnt jest pewniejszy niż szukanie w /media/$USER
 MOUNT_POINT=$(findmnt -n -o TARGET "$USB_DATA_PART")
 
 if [ -z "$MOUNT_POINT" ]; then
@@ -36,13 +30,10 @@ fi
 SYS_PART=$(findmnt -n -o SOURCE /)
 SYS_UUID=$(blkid -s UUID -o value "$SYS_PART")
 
-# Jeśli blkid zawiedzie (np. na Live USB), spróbujmy innej metody
 if [ -z "$SYS_UUID" ]; then
-    # Próba wyciągnięcia UUID z nazwy partycji, jeśli findmnt coś zwrócił
     SYS_UUID=$(lsblk -no UUID "$SYS_PART" | head -n1)
 fi
 
-# Krytyczne sprawdzenie:
 if [ -z "$SYS_UUID" ]; then
     zenity --error --title="Critical error" \
         --text="The UUID of the system partition could not be retrieved.\n\nYou may be running a script on the Live system that isn't installed on the disk yet."
@@ -61,30 +52,115 @@ OS_GRUB_NAME=$(zenity --entry \
 if [ -z "$OS_GRUB_NAME" ]; then exit 1; fi
 
 # --- Pobranie UUID partycji ISO ---
-USB_DEV_BASE=$(echo "$USB_DATA_PART" | sed 's/[0-9]*$//') # Bardziej uniwersalne niż %2
+USB_DEV_BASE=$(echo "$USB_DATA_PART" | sed 's/[0-9]*$//')
 UUID_ISO=$(blkid -s UUID -o value "${USB_DEV_BASE}1")
 UUID_DATA=$(blkid -s UUID -o value "$USB_DATA_PART")
 
 # --- Generowanie plików (Pasek postępu) ---
 (
 echo "10"; echo "# Creating operational scripts..."
-# Skrypty Backup/Restore
+
+# Skrypt Backup
 cat <<EOF > "$MOUNT_POINT/clone_${OS_NAME}_${SUFFIX}.sh"
 #!/bin/bash
-mkdir -p /home/partimag
-mount UUID=$UUID_DATA /home/partimag
-SYS_DEV=\$(blkid -U $SYS_UUID)
-/usr/sbin/ocs-sr -nogui -q2 -j2 -z9p -i 0 -sfsck -p poweroff saveparts "${OS_NAME}_${SUFFIX}-\$(date +%F-%H%M)" "\$SYS_DEV"
+# 1. Montowanie bazy i pobieranie urządzenia po UUID
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
+DEV_PATH=\$(blkid -U $SYS_UUID)
+SYS_DEV=\$(basename "\$DEV_PATH")
+
+if [ -z "\$SYS_DEV" ]; then
+    echo "BŁĄD: Nie znaleziono partycji o UUID: $SYS_UUID"
+    exit 1
+fi
+
+# 2. Dynamiczne sprawdzanie szyfrowania w locie (gocryptfs)
+ENC_ARGS=()
+CONF="/home/partimag/.grubzilla_enc.conf"
+
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$STATUS" = "enabled" ]; then
+        if [ "\$MODE" = "auto" ] && [ -n "\$PASS" ]; then
+            ENC_ARGS=("-goc" "-pg" "\$PASS")
+        else
+            ENC_ARGS=("-goc")
+        fi
+    fi
+fi
+
+# 3. Wywołanie Clonezilli
+/usr/sbin/ocs-sr -nogui -q2 -j2 -z9p -i 0 -sfsck "\${ENC_ARGS[@]}" -p poweroff saveparts "${OS_NAME}_${SUFFIX}-\$(date +%F-%H%M)" "\$SYS_DEV"
+EXIT_CODE=\$?
+
+# 4. Bezpieczne sprzątanie
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$MODE" = "auto" ]; then
+        # Zamazujemy zawartość pliku bez natychmiastowej zmiany nazwy przez shred
+        shred -z -n 1 "\$CONF" 2>/dev/null
+        # Tradycyjne, pewne usunięcie pliku z systemu plików
+        rm -f "\$CONF"
+        # Usunięcie ewentualnych śmieci po wcześniejszych przebiegach shreda
+        rm -f /home/partimag/0* 2>/dev/null
+        # Wymuszenie zapisu na nośnik przed zgaszeniem zasilania
+        sync
+    fi
+fi
+
+exit \$EXIT_CODE
 EOF
 
+# Skrypt Restore
 cat <<EOF > "$MOUNT_POINT/restore_${OS_NAME}_${SUFFIX}.sh"
 #!/bin/bash
-mkdir -p /home/partimag
-mount UUID=$UUID_DATA /home/partimag
-LATEST_BACKUP_NAME=\$(ls -td /home/partimag/${OS_NAME}_${SUFFIX}-* 2>/dev/null | head -n1 | xargs -n1 basename)
-if [[ -z "\$LATEST_BACKUP_NAME" ]]; then exit 1; fi
-SYS_DEV=\$(blkid -U $SYS_UUID)
-/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr -p poweroff restoreparts "\$LATEST_BACKUP_NAME" "\$SYS_DEV"
+# 1. Montowanie bazy i pobieranie urządzenia po UUID
+sudo mkdir -p /home/partimag && sudo mount UUID=$UUID_DATA /home/partimag
+LATEST=\$(ls -td /home/partimag/${OS_NAME}_${SUFFIX}-* 2>/dev/null | head -n1 | xargs -n1 basename)
+DEV_PATH=\$(blkid -U $SYS_UUID)
+SYS_DEV=\$(basename "\$DEV_PATH")
+
+if [ -z "\$LATEST" ] || [ -z "\$SYS_DEV" ]; then
+    echo "BŁĄD: Brak obrazu do przywrócenia lub nie znaleziono dysku!"
+    exit 1
+fi
+
+# 2. Obsługa deszyfrowania przy restore (jeśli obraz zawiera gocryptfs.conf)
+ENC_ARGS=()
+CONF="/home/partimag/.grubzilla_enc.conf"
+
+if [ -f "/home/partimag/\$LATEST/gocryptfs.conf" ]; then
+    if [ -f "\$CONF" ]; then
+        source "\$CONF"
+        if [ "\$STATUS" = "enabled" ] && [ -n "\$PASS" ]; then
+            ENC_ARGS=("-goc" "-pg" "\$PASS")
+        else
+            ENC_ARGS=("-goc")
+        fi
+    else
+        ENC_ARGS=("-goc")
+    fi
+fi
+
+# 3. Wywołanie przywracania
+/usr/sbin/ocs-sr -nogui -e2 -t -iui -k -scr "\${ENC_ARGS[@]}" -p poweroff restoreparts "\$LATEST" "\$SYS_DEV"
+EXIT_CODE=\$?
+
+# 4. Bezpieczne sprzątanie
+if [ -f "\$CONF" ]; then
+    source "\$CONF"
+    if [ "\$MODE" = "auto" ]; then
+        # Zamazujemy zawartość pliku bez natychmiastowej zmiany nazwy przez shred
+        shred -z -n 1 "\$CONF" 2>/dev/null
+        # Tradycyjne, pewne usunięcie pliku z systemu plików
+        rm -f "\$CONF"
+        # Usunięcie ewentualnych śmieci po wcześniejszych przebiegach shreda
+        rm -f /home/partimag/0* 2>/dev/null
+        # Wymuszenie zapisu na nośnik przed zgaszeniem zasilania
+        sync
+    fi
+fi
+
+exit \$EXIT_CODE
 EOF
 
 chmod +x "$MOUNT_POINT/clone_${OS_NAME}_${SUFFIX}.sh"
@@ -123,8 +199,3 @@ echo "100"; echo "# All done!"
 
 # --- Finał ---
 zenity --info --title="Success!" --text="System Configuration <b>$OS_GRUB_NAME</b> was saved to a USB drive.\nNow run 'Updater Grub' in the main system to update the Grub menu."
-
-
-
-
-
