@@ -37,13 +37,13 @@ While Clonezilla is an exceptionally reliable and powerful utility for disk imag
 
      
 
-     <img src="img/image-20261101113449050.png" alt="image-20261101113449050" width="650" />
+     <img src="img/image-20261101113449050.png" alt="image-20261101113449050" width="300" />
 
    * Enter a descriptive name for your Linux system to display in the GRUB boot menu.
 
      
 
-     <img src="img/image-20261101113522646.png" alt="image-20261101113522646" width="650" />
+     <img src="img/image-20261101113522646.png" alt="image-20261101113522646" width="300" />
 
      
 
@@ -114,7 +114,7 @@ GrubZilla automatically detects existing Windows NTFS installations (verifying p
 
 GrubZilla integrates on-the-fly encryption utilizing modern `gocryptfs` containers within Clonezilla:
 
-<img src="img/image-20261101113901337.png" alt="image-20261101113901337" width="650" />
+<img src="img/image-20261101113901337.png" alt="image-20261101113901337" width="300" />
 
 - **Safe Mode (Manual):** Encrypts the backup while requiring manual password entry directly in the Clonezilla terminal during backup and restore phases. This setting **persists permanently** across reboots until manually disabled in GrubZilla settings.
 
@@ -124,7 +124,7 @@ GrubZilla integrates on-the-fly encryption utilizing modern `gocryptfs` containe
   
   
 
-<img src="img/image-20261101113943585.png" alt="image-20261101113943585" width="650" /><img src="img/image-20261101114010809.png" alt="image-20261101114010809" width="650" />
+<img src="img/image-20261101113943585.png" alt="image-20261101113943585" width="650" /><img src="img/image-20261101114010809.png" alt="image-20261101114010809" width="300" />
 
 
 
