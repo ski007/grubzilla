@@ -113,7 +113,7 @@ GrubZilla automatically detects existing Windows NTFS installations (verifying p
 - **Default Restore Behavior:** Selecting a Restore entry from GRUB automatically rolls back your system using the **most recent** image archive located on the USB storage drive.
 - **Selecting Specific Archives:** To restore an earlier point-in-time image, use the **Backup Selection** tool within the GrubZilla utility suite. This generates a dedicated GRUB entry for that specific archive.
 <p align="center">
-  <img src="img/image-4.png" alt="image-4" width="300" />
+  <img src="img/4.png" alt="4.png" width="300" />
 </p>
   
 - **Manual Override:** Selecting `CloneZilla - Standard TUI (EN)` from the boot menu drops into Clonezilla's native interface for unrestricted manual operations.
