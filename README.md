@@ -6,6 +6,7 @@
 
 While Clonezilla is an exceptionally reliable and powerful utility for disk imaging, its classic Text User Interface (TUI) can be overwhelming for everyday desktop users. GrubZilla bridges this gap by fully automating partition detection, unattended execution, and encrypted storage handling for Debian- and Ubuntu-based Linux distributions (with experimental Windows NTFS support).
 
+diff
 - CRITICAL WARNING – DATA LOSS HAZARD
 - Initializing a drive with GrubZilla completely formats the selected target device.
 - 1. 2 GB FAT32 partition (Label: CLONEZILLA)
