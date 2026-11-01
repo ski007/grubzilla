@@ -6,9 +6,7 @@
 
 While Clonezilla is an exceptionally reliable and powerful utility for disk imaging, its classic Text User Interface (TUI) can be overwhelming for everyday desktop users. GrubZilla bridges this gap by fully automating partition detection, unattended execution, and encrypted storage handling for Debian- and Ubuntu-based Linux distributions (with experimental Windows NTFS support).
 
-
-> [!WARNING]
-> **CRITICAL WARNING – DATA LOSS HAZARD**
+> [!WARNING] **CRITICAL WARNING – DATA LOSS HAZARD**
 >
 > Initializing a drive with GrubZilla **completely formats the selected target device**, creating a dedicated two-partition layout:
 >
@@ -16,7 +14,6 @@ While Clonezilla is an exceptionally reliable and powerful utility for disk imag
 > 2. **Ext4 storage partition** utilizing remaining disk space (Label: `CLONEZILLA_DATA`)
 >
 > *System drives are safeguarded against accidental formatting, but selecting the wrong external USB drive will result in permanent data loss. Verify drive identifiers carefully before proceeding.*
-
 
 
 ## 1. Initial Setup: Preparing the USB Storage Drive
