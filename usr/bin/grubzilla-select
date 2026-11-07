@@ -48,18 +48,32 @@ fi
 
 # --- 4. Inteligencja: Gdzie to przywrócić? (Dynamiczne szukanie UUID) ---
 
-# 1. Odczytujemy z obrazu nazwę partycji źródłowej (np. nvme0n1p3)
-SRC_PART=$(cat "$MOUNT_DATA/$WYBRANY/parts" | head -n1)
+# 1. Pobranie z odpowiedniego skryptu restore_*.sh na partycji CLONEZILLA_DATA
+# Nazwa obrazu ma postać: LinuxMint_4814-2026-11-03-2028 -> prefiks to LinuxMint_4814
+OS_PREFIX=$(echo "$WYBRANY" | sed -E 's/-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}$//')
+RESTORE_SCRIPT="$MOUNT_DATA/restore_${OS_PREFIX}.sh"
 
-# 2. Wyciągamy UUID - dodajemy 'head -n1', żeby brał tylko JEDEN wynik
-TARGET_UUID=$(grep "$SRC_PART" "$MOUNT_DATA/$WYBRANY/blkid.list" | grep -oP 'UUID="\K[^"]+' | head -n1)
-
-# 3. Zapasowe szukanie - tu też dodajemy 'head -n1'
-if [ -z "$TARGET_UUID" ]; then
-    TARGET_UUID=$(cat "$MOUNT_DATA/$WYBRANY/info-uuid-bdev_id.txt" | grep "$SRC_PART" | awk '{print $2}' | head -n1)
+if [ -f "$RESTORE_SCRIPT" ]; then
+    TARGET_UUID=$(grep -oP '(?<=blkid -U )[a-fA-F0-9-]+' "$RESTORE_SCRIPT" | head -n1)
 fi
 
-# 4. Sprawdzamy, czy w ogóle mamy UUID
+# 2. Rezerwa: jeśli brak skryptu, wyciągamy 4-znakowy ID z nazwy i szukamy partycji w systemie
+if [ -z "$TARGET_UUID" ]; then
+    SHORT_ID=$(echo "$WYBRANY" | grep -oP '(?<=_)[a-fA-F0-9]{4}(?=-)')
+    if [ -n "$SHORT_ID" ]; then
+        TARGET_UUID=$(blkid -s UUID -o value | grep -i "^${SHORT_ID}" | head -n1)
+    fi
+fi
+
+# 3. Rezerwa: jeśli kopia nie była szyfrowana gocryptfs, czytamy standardowo parts/blkid.list
+if [ -z "$TARGET_UUID" ] && [ ! -f "$MOUNT_DATA/$WYBRANY/gocryptfs.conf" ]; then
+    SRC_PART=$(awk '{print $1}' "$MOUNT_DATA/$WYBRANY/parts" 2>/dev/null | tr -d '[:space:]')
+    if [ -n "$SRC_PART" ] && [ -f "$MOUNT_DATA/$WYBRANY/blkid.list" ]; then
+        TARGET_UUID=$(grep -E "${SRC_PART}" "$MOUNT_DATA/$WYBRANY/blkid.list" 2>/dev/null | grep -oP '(?<!PART)UUID="\K[^"]+' | head -n1)
+    fi
+fi
+
+# 4. Sprawdzamy, czy udało się ustalić UUID
 if [ -z "$TARGET_UUID" ]; then
     zenity --error --text="Error: Unable to read the target UUID from the image $WYBRANY."
     umount "$MOUNT_DATA" && rmdir "$MOUNT_DATA"
